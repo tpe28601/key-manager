@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "key-manager-pywebview"
+version = "1.0.0"
+authors = [{name = "Mike Lin"}]
+description = "Windows SSH & GPG Key Manager using pywebview"
+requires-python = ">=3.11"
+dependencies = [
+  "pywebview>=5.4,<7",
+  "cryptography>=44,<47",
+  "bcrypt>=4.2,<6",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<10"]
+build = ["pyinstaller>=6.11,<7"]
+
+[project.scripts]
+key-manager = "key_manager.main:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"key_manager.web" = ["static/*.html", "static/*.css", "static/*.js"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]

@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="zh-Hant" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Key Manager</title>
+  <link rel="stylesheet" href="app.css">
+  <link rel="stylesheet" href="beta3.css">
+  <link rel="stylesheet" href="beta4.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="icon brand-icon" data-icon="tabler:shield-lock"></span>
+        <div class="brand-copy"><strong>Key Manager</strong><span>SSH &amp; GPG</span></div>
+      </div>
+      <nav class="nav-list" aria-label="主要導覽">
+        <button class="nav-item active" data-page="dashboard"><span class="icon" data-icon="tabler:layout-dashboard"></span><span>總覽</span></button>
+        <button class="nav-item" data-page="ssh"><span class="icon" data-icon="tabler:key"></span><span>SSH 金鑰</span></button>
+        <button class="nav-item" data-page="gpg"><span class="icon" data-icon="tabler:shield-lock"></span><span>GPG 金鑰</span></button>
+        <button class="nav-item" data-page="git"><span class="icon" data-icon="tabler:brand-git"></span><span>Git 設定</span></button>
+      </nav>
+      <div class="sidebar-footer">
+        <div><strong id="footer-version">v1.0 Preview</strong></div>
+        <div>作者：<span id="footer-author">Mike Lin</span></div>
+        <div class="environment" id="environment">Windows</div>
+      </div>
+    </aside>
+
+    <main class="main-area">
+      <header class="topbar">
+        <div class="topbar-spacer"></div>
+        <button class="button ghost" id="refresh-btn"><span class="icon" data-icon="tabler:refresh"></span>重新整理</button>
+        <button class="button ghost" id="theme-btn"><span class="icon" data-icon="tabler:moon"></span><span id="theme-text">深色模式</span></button>
+      </header>
+
+      <div class="content-scroll">
+        <section class="page active" id="page-dashboard">
+          <div class="page-heading"><div><h1>總覽</h1><p>查看 SSH、GPG 與 Git 的目前狀態</p></div></div>
+          <div class="dashboard-grid">
+            <article class="status-card"><div class="card-label">SSH</div><div class="card-value" id="dash-ssh">讀取中…</div></article>
+            <article class="status-card"><div class="card-label">GPG</div><div class="card-value" id="dash-gpg">讀取中…</div></article>
+            <article class="status-card"><div class="card-label">Git Identity</div><div class="card-value" id="dash-git">讀取中…</div></article>
+            <article class="status-card"><div class="card-label">Git GPG Signing</div><div class="card-value" id="dash-signing">讀取中…</div></article>
+          </div>
+          <div class="action-row">
+            <button class="button primary" data-action="open-ssh-create"><span class="icon" data-icon="tabler:key"></span>建立 SSH 金鑰</button>
+            <button class="button" data-action="open-gpg-create"><span class="icon" data-icon="tabler:shield-lock"></span>建立 GPG 金鑰</button>
+            <button class="button" data-action="open-git"><span class="icon" data-icon="tabler:brand-git"></span>設定 Git GPG Signing</button>
+          </div>
+        </section>
+
+        <section class="page" id="page-ssh">
+          <div class="page-heading split"><div><h1>SSH 金鑰</h1><p id="ssh-status">管理本機 Public Key 與 SSH Agent</p></div><div class="page-heading-actions"><button class="button" id="agent-manage-btn"><span class="icon" data-icon="tabler:key"></span>管理 Agent</button><button class="button primary" id="ssh-create-btn"><span class="icon" data-icon="tabler:plus"></span>建立 SSH 金鑰</button></div></div>
+          <div class="notice"><span class="icon" data-icon="tabler:info-circle"></span><span>SSH Agent 是暫存已解鎖私鑰的可選功能；未啟動不影響 Public Key 複製或匯出。</span></div>
+          <div class="table-wrap"><table><thead><tr><th>名稱</th><th>類型</th><th>Fingerprint</th><th>Comment</th><th class="right">操作</th></tr></thead><tbody id="ssh-body"></tbody></table><div class="empty-state" id="ssh-empty">尚未找到 SSH Public Key</div></div>
+        </section>
+
+        <section class="page" id="page-gpg">
+          <div class="page-heading split"><div><h1>GPG 金鑰</h1><p id="gpg-status">Key 列表由 Git Bash 中的 gpg 提供</p></div><button class="button primary" id="gpg-create-btn"><span class="icon" data-icon="tabler:plus"></span>建立 GPG 金鑰</button></div>
+          <div class="notice"><span class="icon" data-icon="tabler:terminal-2"></span><span>Backend：C:\Program Files\Git\bin\bash.exe -lc "gpg …"，與你在 Git Bash 手動執行的環境一致。</span></div>
+          <div class="table-wrap"><table><thead><tr><th>使用者</th><th>演算法</th><th>Fingerprint</th><th>到期日</th><th class="right">操作</th></tr></thead><tbody id="gpg-body"></tbody></table><div class="empty-state" id="gpg-empty">尚未找到 GPG Secret Key</div></div>
+        </section>
+
+        <section class="page" id="page-git">
+          <div class="page-heading"><div><h1>Git 設定</h1><p id="git-status">設定 Git for Windows 全域身份與 Commit + Tag Signing</p></div></div>
+          <div class="form-panel">
+            <h2>Git Identity</h2>
+            <div class="form-grid"><label>Global user.name<input id="git-name" autocomplete="off"></label><label>Global user.email<input id="git-email" type="email" autocomplete="off"></label></div>
+            <div class="action-row"><button class="button primary" id="git-save-identity"><span class="icon" data-icon="tabler:device-floppy"></span>儲存 Git Identity</button></div>
+          </div>
+          <div class="form-panel">
+            <h2>Commit + Tag Signing</h2>
+            <div class="form-grid single">
+              <label>Signing Key<select id="git-signing-key"></select></label>
+              <label>完整 Fingerprint<input id="git-fingerprint" readonly></label>
+              <label>gpg.format<input id="git-format" readonly></label>
+              <label>Git gpg.program<input id="git-program" readonly></label>
+            </div>
+            <label class="switch-row"><input type="checkbox" id="git-signing-enabled"><span class="switch"></span><span>啟用 Git GPG 簽章（Commit + Tag）</span></label>
+            <div class="action-row"><button class="button" id="git-save-signing"><span class="icon" data-icon="tabler:signature"></span>套用 Signing 設定</button></div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <dialog id="ssh-dialog" class="modal"><form method="dialog" id="ssh-form"><div class="modal-head"><div><h2>建立 SSH 金鑰</h2><p>預設使用 RSA 4096</p></div><button class="icon-button" id="ssh-cancel-x" type="button" aria-label="關閉"><span class="icon" data-icon="tabler:x"></span></button></div><div class="modal-body"><label>名稱<input name="filename" value="id_rsa" required></label><label>Email / Comment<input name="comment" type="text"></label><label>演算法<select name="algorithm"><option value="rsa4096" selected>RSA 4096</option><option value="ed25519">ED25519</option></select></label><label>Passphrase<input name="passphrase" type="password" autocomplete="new-password"></label><label>確認 Passphrase<input name="confirm" type="password" autocomplete="new-password"></label></div><div class="modal-actions"><button class="button" id="ssh-cancel" type="button">取消</button><button class="button primary" id="ssh-submit" type="submit">建立</button></div></form></dialog>
+
+  <dialog id="gpg-dialog" class="modal"><form method="dialog" id="gpg-form"><div class="modal-head"><div><h2>建立 GPG 金鑰</h2><p>使用 Git Bash 內的 GPG</p></div><button class="icon-button" id="gpg-cancel-x" type="button" aria-label="關閉"><span class="icon" data-icon="tabler:x"></span></button></div><div class="modal-body"><label>Name<input name="name" required></label><label>Email<input name="email" type="email" required></label><label>演算法<select name="algorithm"><option value="rsa4096" selected>RSA 4096</option><option value="ed25519">ED25519</option></select></label><label>有效期限<select name="expire"><option value="1y">1 年</option><option value="2y" selected>2 年</option><option value="3y">3 年</option><option value="5y">5 年</option><option value="0">不過期</option></select></label><div class="notice"><span class="icon" data-icon="tabler:shield-lock"></span><span>密碼由 GnuPG 的 Pinentry 視窗設定。Key Manager 不會讀取、保存或傳送 GPG Passphrase。</span></div></div><div class="modal-actions"><button class="button" id="gpg-cancel" type="button">取消</button><button class="button primary" id="gpg-submit" type="submit">建立</button></div></form></dialog>
+
+
+  <dialog id="agent-dialog" class="modal agent-modal">
+    <div class="modal-head">
+      <div><h2>SSH Agent 管理</h2><p id="agent-manager-status">讀取中…</p></div>
+      <button class="icon-button" id="agent-cancel-x" type="button" aria-label="關閉"><span class="icon" data-icon="tabler:x"></span></button>
+    </div>
+    <div class="modal-body agent-modal-body">
+      <div class="notice agent-notice"><span class="icon" data-icon="tabler:info-circle"></span><span>Agent 只暫存已解鎖的 Private Key。移除 Agent 內的 Key 不會刪除硬碟上的 Key 檔案。</span></div>
+      <div class="table-wrap agent-table-wrap">
+        <table class="agent-table"><thead><tr><th>名稱 / Comment</th><th>類型</th><th>Fingerprint</th><th class="right">操作</th></tr></thead><tbody id="agent-body"></tbody></table>
+        <div class="empty-state" id="agent-empty">Agent 目前沒有載入 Key</div>
+      </div>
+    </div>
+    <div class="modal-actions agent-actions">
+      <button class="button primary" id="agent-start" type="button"><span class="icon" data-icon="tabler:plus"></span>啟動 Agent</button>
+      <button class="button" id="agent-clear" type="button"><span class="icon" data-icon="tabler:trash"></span>清空全部 Key</button>
+      <button class="button" id="agent-stop" type="button"><span class="icon" data-icon="tabler:x"></span>停止 Agent</button>
+      <button class="button" id="agent-close" type="button">關閉</button>
+    </div>
+  </dialog>
+
+  <div class="toast-stack" id="toasts"></div>
+  <script src="icons.js"></script>
+  <script src="app.js"></script>
+  <script src="beta3.js"></script>
+</body>
+</html>

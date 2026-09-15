@@ -3,7 +3,7 @@ setlocal EnableExtensions EnableDelayedExpansion
 cd /d "%~dp0"
 
 echo ============================================================
-echo   Key Manager 1.0.0 - pywebview Windows Build
+echo   Key Manager 1.0.1 - pywebview Windows Release Build
 echo ============================================================
 
 set "PY_CMD="
@@ -33,17 +33,23 @@ if errorlevel 1 goto :failed
 if exist build rmdir /s /q build
 if exist dist rmdir /s /q dist
 
-echo [Build] Building compact single EXE...
+echo [Build] Building Windows single EXE without UPX...
 "%PYTHON%" -m PyInstaller --noconfirm --clean key_manager.spec
 if errorlevel 1 goto :failed
 
-if not exist "dist\KeyManager.exe" goto :failed
-for /f "usebackq delims=" %%S in (`powershell -NoProfile -Command "$f=Get-Item 'dist\KeyManager.exe'; '{0:N1} MB' -f ($f.Length/1MB)"`) do set "EXE_SIZE=%%S"
+set "EXE=dist\KeyManager.exe"
+if not exist "%EXE%" goto :failed
+
+powershell -NoProfile -Command "$h=(Get-FileHash '%EXE%' -Algorithm SHA256).Hash; Set-Content -Encoding ascii '%EXE%.sha256' ($h + '  KeyManager.exe'); Write-Host ('[Build] SHA256: ' + $h)"
+if errorlevel 1 goto :failed
+
+for /f "usebackq delims=" %%S in (`powershell -NoProfile -Command "$f=Get-Item '%EXE%'; '{0:N1} MB' -f ($f.Length/1MB)"`) do set "EXE_SIZE=%%S"
 
 echo.
 echo [Build] SUCCESS
-echo [Build] Output: %CD%\dist\KeyManager.exe
+echo [Build] App: %CD%\%EXE%
 echo [Build] Size: !EXE_SIZE!
+echo [Build] SHA256 file: %CD%\%EXE%.sha256
 echo [Build] Runtime prerequisite: Git for Windows + Microsoft Edge WebView2
 echo.
 start "" explorer.exe "%CD%\dist"

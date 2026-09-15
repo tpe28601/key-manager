@@ -77,3 +77,52 @@ def reset_ssh_dir() -> None:
     data = _load()
     data.pop("ssh_dir", None)
     _save(data)
+
+VALID_THEMES = {"light", "dark"}
+
+
+def get_theme() -> str:
+    value = _load().get("theme")
+    return value if isinstance(value, str) and value in VALID_THEMES else "light"
+
+
+def set_theme(theme: str) -> None:
+    value = str(theme).strip().lower()
+    if value not in VALID_THEMES:
+        raise ValueError("Theme must be light or dark")
+    data = _load()
+    data["theme"] = value
+    _save(data)
+
+
+def get_managed_agent_env() -> dict[str, str]:
+    value = _load().get("managed_ssh_agent")
+    if not isinstance(value, dict):
+        return {}
+    sock = value.get("SSH_AUTH_SOCK")
+    pid = value.get("SSH_AGENT_PID")
+    if not isinstance(sock, str) or not sock.strip():
+        return {}
+    if not isinstance(pid, str) or not pid.isdigit():
+        return {}
+    return {"SSH_AUTH_SOCK": sock, "SSH_AGENT_PID": pid}
+
+
+def set_managed_agent_env(env: dict[str, str]) -> None:
+    sock = str(env.get("SSH_AUTH_SOCK", "")).strip()
+    pid = str(env.get("SSH_AGENT_PID", "")).strip()
+    if not sock or not pid.isdigit():
+        raise ValueError("Invalid managed SSH Agent environment")
+    data = _load()
+    data["managed_ssh_agent"] = {
+        "SSH_AUTH_SOCK": sock,
+        "SSH_AGENT_PID": pid,
+    }
+    _save(data)
+
+
+def clear_managed_agent_env() -> None:
+    data = _load()
+    data.pop("managed_ssh_agent", None)
+    _save(data)
+

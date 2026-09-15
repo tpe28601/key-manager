@@ -18,7 +18,7 @@ def test_app_info_has_release_identity():
     info = api.get_app_info()
 
     assert info["name"] == "Key Manager"
-    assert info["version"] == "1.0.0"
+    assert info["version"] == "1.0.1"
     assert info["author"] == "Mike Lin"
     assert info["ui"] == "pywebview"
 
@@ -179,6 +179,7 @@ def test_create_gpg_key_delegates_passphrase_to_native_pinentry(monkeypatch):
             "email": "mike@example.com",
             "expire": "2y",
             "algorithm": "ed25519",
+            # Old clients may still send this; backend must not forward it.
             "passphrase": "must-not-be-forwarded",
         }
     )

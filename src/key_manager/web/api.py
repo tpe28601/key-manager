@@ -204,7 +204,7 @@ class KeyManagerApi:
     def export_ssh_public_key(self, name: str) -> dict[str, Any]:
         try:
             key = self._ssh_key(name)
-            destination = self._save_path(f"{Key.name}.pub", "SSH Public Key (*.pub)")
+            destination = self._save_path(f"{key.name}.pub", "SSH Public Key (*.pub)")
             if destination is None:
                 return _ok(cancelled=True)
             if destination.exists():
@@ -218,7 +218,7 @@ class KeyManagerApi:
         try:
             key = self._ssh_key(name)
             if not key.has_private_key:
-                raise RuntimeError("找不到對愇的 Private Key")
+                raise RuntimeError("找不到對應的 Private Key")
             result = add_key_to_agent(key.private_path)
             if result.returncode != 0:
                 raise RuntimeError(result.stderr.strip() or result.stdout.strip() or "SSH Agent 操作失敗")

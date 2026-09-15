@@ -134,7 +134,7 @@
 
   async function loadAppInfo() {
     const info = await api('get_app_info');
-    $('#footer-version').textContent = `v${info.version_label || info.version || '1.0.0'}`;
+    $('#footer-version').textContent = `v${info.version_label || info.version || '1.0 Preview'}`;
     $('#footer-author').textContent = info.author || 'Mike Lin';
     $('#environment').textContent = `ç’°å¢ƒï¼š${info.system || 'Windows'}\n${info.home || ''}`;
   }
@@ -143,36 +143,311 @@
     const result = await api('dashboard');
     if (!result.ok) {
       ['dash-ssh', 'dash-gpg', 'dash-git', 'dash-signing'].forEach(id => document.getElementById(id).textContent = 'è®€å–å¤±æ•—');
+      toast(result.error || 'ç¸½è¦½è®€å–å¤±æ•—', 'error');
       return;
     }
-    $('#dash-ssh').textContent = `${result.ssh_count} çµ„ Key\n${result.agent_status}`;
-    $('#dash-gpg').textContent = `${result.gpg_count} çµ„ Secret Key`;
-    $('#dash-git').textContent = result.git_installed ? `${result.git_name || 'æ‰ßW‰Ü™\Ý[™Ú]Ù[XZ[	ËIßXˆ	ù§*¹k¢z(çHÚ]›ÜˆÚ[™ÝÜÉÎÂˆ	
-	ÈÙ\Ú\ÚYÛš[™ÉÊK^ÛÛ[H™\Ý[œÚYÛš[™×Ù[˜X›YÈ9mì¹egùå*‰ÜÚÜš[™Ù\œš[
-™\Ý[œÚYÛš[™×ÚÙ^J_Xˆ	ù§*¹egùå*	ÎÂˆB‚ˆ\Þ[˜È[˜Ý[ÛˆØYÜÚ
+    $('#dash-ssh').textContent = `${result.ssh_count} çµ„å…¬é–‹é‡‘é‘°\nAgentï¼š${result.agent_status}`;
+    $('#dash-gpg').textContent = `${result.gpg_count} çµ„ Secret Key\nGit Bash GPG`;
+    $('#dash-git').textContent = result.git_installed ? `${result.git_name || 'å°šæœªè¨­å®š'}\n${result.git_email || 'å°šæœªè¨­å®š email'}` : 'æ‰¾ä¸åˆ° Git for Windows';
+    const signingPartial = !!result.commit_signing_enabled !== !!result.tag_signing_enabled;
+    $('#dash-signing').textContent = result.signing_enabled
+      ? `Commit + Tag å·²å•Ÿç”¨\n${shortFingerprint(result.signing_key)}`
+      : signingPartial ? 'Commit / Tag è¨­å®šä¸ä¸€è‡´' : 'æœªå•Ÿç”¨';
+  }
 
-HÂˆÛÛœÝ™\Ý[H]ØZ]\J	Û\ÝÜÜÚÚÙ^\ÉÊNÂˆYˆ
-\™\Ý[›ÚÊHÈÚÝÔ™\Ý[
-™\Ý[
-NÈ™]\›ŽÈBˆÝ]KœÜÚÙ^\ÈH™\Ý[šÙ^\È×NÂˆ	
-	ÈÜÜÚ\Ý]\ÉÊK^ÛÛ[H™\Ý[˜YÙ[ÜÝ]\È	ù§*¹egùbåIÎÂˆ™[™\”ÔÒ
+  async function loadSsh() {
+    const result = await api('list_ssh_keys');
+    const tbody = $('#ssh-body');
+    tbody.replaceChildren();
+    state.sshKeys = result.keys || [];
+    $('#ssh-status').textContent = result.ok ? `SSH Agentï¼š${result.agent_status || 'æœªçŸ¥'} Â· ${state.sshKeys.length} çµ„ Public Key` : result.error || 'SSH è®€å–å¤±æ•—';
+    $('#ssh-empty').classList.toggle('visible', state.sshKeys.length === 0);
+    state.sshKeys.forEach(key => {
+      const tr = document.createElement('tr');
+      tr.className = 'key-row';
+      tr.dataset.key = key.name;
+      tr.classList.toggle('selected', state.selectedSsh === key.name);
+      tr.addEventListener('click', () => {
+        state.selectedSsh = key.name;
+        $$('#ssh-body .key-row').forEach(row => row.classList.toggle('selected', row === tr));
+      });
+      tr.append(cell(key.name));
+      tr.append(cell(key.algorithm));
+      tr.append(cell(key.fingerprint, 'mono'));
+      tr.append(cell(key.comment || '-', 'muted'));
+      const actions = document.createElement('td');
+      actions.className = 'right';
+      const wrap = document.createElement('div');
+      wrap.className = 'row-actions';
+      const agentButton = actionButton(key.agent_loaded ? 'å·²è¼‰å…¥' : 'åŠ å…¥ Agent', key.agent_loaded ? 'tabler:check' : 'tabler:key', () => addAgent(key.name));
+      agentButton.disabled = !!key.agent_loaded;
+      wrap.append(
+        actionButton('è¤‡è£½', 'tabler:copy', () => copySsh(key.name)),
+        actionButton('åŒ¯å‡º', 'tabler:download', () => exportSsh(key.name)),
+        agentButton,
+        actionButton('åˆªé™¤', 'tabler:trash', () => deleteSsh(key.name))
+      );
+      actions.append(wrap);
+      tr.append(actions);
+      tbody.append(tr);
+    });
+  }
 
-NÂˆB‚ˆ[˜Ý[Ûˆ™[™\”ÔÒ
+  async function loadGpg() {
+    const result = await api('list_gpg_keys');
+    const tbody = $('#gpg-body');
+    tbody.replaceChildren();
+    state.gpgKeys = result.keys || [];
+    $('#gpg-status').textContent = result.ok ? `Git Bash GPG Â· ${state.gpgKeys.length} çµ„ Secret Key` : result.error || 'GPG è®€å–å¤±æ•—';
+    $('#gpg-empty').classList.toggle('visible', state.gpgKeys.length === 0);
+    state.gpgKeys.forEach(key => {
+      const tr = document.createElement('tr');
+      tr.className = 'key-row';
+      tr.dataset.key = key.fingerprint;
+      tr.classList.toggle('selected', state.selectedGpg === key.fingerprint);
+      tr.addEventListener('click', () => {
+        state.selectedGpg = key.fingerprint;
+        $$('#gpg-body .key-row').forEach(row => row.classList.toggle('selected', row === tr));
+      });
+      tr.append(cell(key.user_id || `${key.name} <${key.email}>`));
+      tr.append(cell(key.algorithm));
+      tr.append(cell(shortFingerprint(key.fingerprint), 'mono'));
+      tr.append(cell(formatDate(key.expires_at), 'muted'));
+      const actions = document.createElement('td');
+      actions.className = 'right';
+      const wrap = document.createElement('div');
+      wrap.className = 'row-actions';
+      wrap.append(
+        actionButton('è¤‡è£½', 'tabler:copy', () => copyGpg(key.fingerprint)),
+        actionButton('åŒ¯å‡º', 'tabler:download', () => exportGpg(key.fingerprint)),
+        actionButton('åˆªé™¤', 'tabler:trash', () => deleteGpg(key.fingerprint, key.user_id || key.email || key.name))
+      );
+      actions.append(wrap);
+      tr.append(actions);
+      tbody.append(tr);
+    });
+  }
 
-HÂˆÛÛœÝ›ÙHH	
-	ÈÜÜÚX›ÙIÊNÂˆ›ÙKš[›™\’SH	ÉÎÂˆ	
-	ÈÜÜÚY[\IÊK˜Û\ÜÓ\ÝÙÙÛJ	Ýš\ÚX›IËÝ]KœÜÚÙ^\Ë›[™ÝOOH
-NÂˆÝ]KœÜÚÙ^\Ë™›Ü‘XXÚ
-Ù^HOˆÂˆÛÛœÝˆHØÝ[Y[˜Ü™X]Q[[Y[
-	Ý‰ÊNÂˆ‹˜Û\ÜÓ˜[YHH	Ù]K\›ÝÉÎÂˆ‹˜\[™
-Ù[
-Ù^K›˜[YJJNÂˆ‹˜\[™
-Ù[
-Ù^K˜[ÛÜš]H	ËIÊJNÂˆ‹˜\[™
-Ù[
-Ù^K™š[™Ù\œš[	ËIË	Û[Û›ÉÊJNÂˆ‹˜\[™
-Ù[
-Ù^K˜ÛÛ[Y[	ËIÊJNÂˆÛÛœÝXÝ[ÛœÈHØÝ[Y[˜Ü™X]Q[[Y[
-	Ý	ÊNÂˆXÝ[ÛœË˜Û\ÜÓ˜[YHH	ÜšYÚ	ÎÂˆÛÛœÝÜ˜\HØÝ[Y[˜Ü™X]Q[[Y[
-	Ù]‰ÊNÂˆÜ˜\˜Û\ÜÓ˜[YHH	Ü›ÝËXXÝ[ÛœÉÎÂˆÜ˜\˜\[™
-XÝ[Û]ÛŠ	ÚŠH~Š;ÒrÂwF&ÆW#¦6Æ—&ö&BrÂ‚’Óâ6÷•76‚†¶W’ææÖR’’“°¢w&æVæB†7F–öä'WGFöâ‚~XÊþX{¢rÂwF&ÆW#¦F÷væÆöBrÂ‚’ÓâW‡÷'E76‚†¶W’ææÖR’’“°¢–b†¶W’æ†5÷&—fFUö¶W’’°¢6öç7BvVçDÆ&VÂÒ¶W’ævVçEöÆöFVBò~[{.‹ÈžXZRr¢~XªXZRvVçBs°¢6öç7BvVçD'WGFöâÒ7F–öä'WGFöâ†vVçDÆ&VÂÂ¶W’ævVçEöÆöFVBòwF&ÆW#¦6†V6²r¢wF&ÆW#¦¶W’rÂ‚’ÓâFE76…FôvVçB†¶W’ææÖR’Â²&–Ö'“¢¶W’ævVçEöÆöFVBÒ“°¢vVçD'WGFöâæF—6&ÆVBÒ¶W’ævVçEöÆöFVC°¢w&æVæB†vVçD'WGFöâ“°¢Ð¢w&æVæB†7F–öä'WGFöâ‚~XŠ®™šBrÂwF&ÆW#§G&6‚rÂ‚’ÓâFVÆWFU76‚†¶W’ææÖR’’“°¢7F–öç2æVæB‡w&“°¢G"æVæB†7F–öç2“°¢&öG’æVæB‡G"“°¢Ò“°¢Ð ¢7–æ2gVæ7F–öâÆöDwr‚’°¢6öç7B&W7VÇBÒv—B’‚vÆ—7Eöwuö¶W—2r“°¢–b‚&W7VÇBæö²’²6†÷u&W7VÇB‡&W7VÇB“²&WGW&ã²Ð¢7FFRæwt¶W—2Ò&W7VÇBæ¶W—2ÇÂµÓ°¢B‚r6wr×7FGW2r’çFW‡D6öçFVçBÒG·7FFRæwt¶W—2æÆVæwF‡Ò{XB6V7&WB¶W–°¢&VæFW$wr‚“°¢Ð ¢gVæ7F–öâ&VæFW$wr‚’°¢6öç7B&öG’ÒB‚r6wrÖ&öG’r“°¢&öG’æ–ææW$…DÔÂÒrs°¢B‚r6wrÖV×G’r’æ6Æ74Æ—7BçFövvÆR‚wf—6–&ÆRrÂ7FFRæwt¶W—2æÆVæwF‚ÓÓÒ“°¢7FFRæwt¶W—2æf÷$V6‚†¶W’Óâ°¢6öç7BG"ÒFö7VÖVçBæ7&VFTVÆVÖVçB‚wG"r“°¢G"æ6Æ74æÖRÒvFF×&÷rs°¢G"æVæB†6VÆÂ†¶W’çW6W%ö–BÇÂG¶¶W’ææÖWÒÂG¶¶W’æVÖ–ÇÓæ’“°¢G"æVæB†6VÆÂ†¶W’æÆv÷&—F†ÒÇÂrÒr’“°¢G"æVæB†6VÆÂ†¶W’æf–ævW'&–çBÇÂrÒrÂvÖöæòr’“°¢G"æVæB†6VÆÂ†f÷&ÖDFFR†¶W’æW‡—&W5öB’’“°¢6öç7B7F–öç2ÒFö7VÖVçBæ7&VFTVÆVÖVçB‚wFBr“°¢7F–öç2æ6Æ74æÖRÒw&–v‡Bs°¢6öç7Bw&ÒFö7VÖVçBæ7&VFTVÆVÖVçB‚vF—br“°¢w&æ6Æ74æÖRÒw&÷rÖ7F–öç2s°¢w&æVæB†7F–öä'WGFöâ‚~ZHÞŠ;ÒrÂwF&ÆW#¦6Æ—&ö&BrÂ‚’Óâ6÷”wr¶W’æf–ævW'&–çB’“°¢w&æVæB†7F–öä'WGFöâ‚~XÊþX{¢rÂwF&ÆW#¦F÷væÆöBrÂ‚’ÓâW‡÷'Dwr†¶W’æf–ævW'&–çB’’“°¢w&æVæB†7F–öä'WGFöâ‚~XŠ®™šBrÂwF&ÆW#§G&6‚rÂ‚’ÓâFVÆWFTur†¶W’æf–ævW'&–çBÂ¶W’çW6W%ö–BÇÂ¶W’æf–ævW'&–çB’’“°¢7F–öç2æVæB‡w&“°¢G"æVæB†7F–öç2“°¢&öG’æVæB‡G"“°¢Ò“°¢Ð ¢7–æ2gVæ7F–öâÆöDv—B‚’°¢6öç7B&W7VÇBÒv—B’‚w&VEöv—Eö6öæf–rr“°¢–b‚&W7VÇBæö²’²6†÷u&W7VÇB‡&W7VÇB“²&WGW&ã²Ð¢7FFRæv—D6öæf–rÒ&W7VÇBæ6öæf–rÇÂ·Ó°¢B‚r6v—BÖæÖRr’çfÇVRÒ7FFRæv—D6öæf–rææÖRÇÂrs°¢B‚r6v—BÖVÖ–Âr’çfÇVRÒ7FFRæv—D6öæf–ræVÖ–ÂÇÂrs°¢B‚r6v—BÖf–ævW'&–çBr’çfÇVRÒ7FFRæv—D6öæf–rç6–væ–æuö¶W’ÇÂrs°¢B‚r6v—BÖf÷&ÖBr’çfÇVRÒ7FFRæv—D6öæf–ræwuöf÷&ÖBÇÂrs°¢B‚r6v—B×&öw&Òr’çfÇVRÒ7FFRæv—D6öæf–ræwu÷&öw&ÒÇÂrs°¢B‚r6v—B×6–væ–ærÖVæ&ÆVBr’æ6†V6¶VBÒ7FFRæv—D6öæf–ræ6öÖÖ—Eöww6–vâbb7FFRæv—D6öæf–rçFuöww6–vã°¢÷VÆFU6–væ–æt¶W—2‚“°¢Ð ¢gVæ7F–öâ÷VÆFU6–væ–æt¶W—2‚’°¢6öç7B6VÆV7BÒB‚r6v—B×6–væ–ærÖ¶W’r“°¢6VÆV7Bæ–ææW$…DÔÂÒsÆ÷F–öâfÇVSÒ"#îiÊ®˜Ži8sÂö÷F–öãâs°¢7FFRæwt¶W—2æf÷$V6‚†¶W’Óâ°¢6öç7B÷F–öâÒFö7VÖVçBæ7&VFTVÆVÖVçB‚v÷F–öâr“°¢÷F–öâçfÇVRÒ¶W’æf–ævW'&–çC°¢÷F–öâçFW‡D6öçFVçBÒG¶¶W’çW6W%ö–BÇÂtur¶W’wÒ(	BG¶¶W’æf–ævW'&–çGÖ°¢6VÆV7BæVæB†÷F–öâ“°¢Ò“°¢–b‡7FFRæv—D6öæf–sòç6–væ–æuö¶W’’6VÆV7BçfÇVRÒ7FFRæv—D6öæf–rç6–væ–æuö¶W“°¢Ð ¢7–æ2gVæ7F–öâ&Vg&W6„7W'&VçB‚’°¢6WDÆöF–ær‡G'VR“°¢G'’°¢–b‡7FFRçvRÓÓÒvF6†&ö&Br’v—B&öÖ—6RæÆÂ…¶ÆöDF6†&ö&B‚’ÂÆöDwr‚•Ò“°¢–b‡7FFRçvRÓÓÒw76‚r’v—BÆöE76‚‚“°¢–b‡7FFRçvRÓÓÒvwrr’v—BÆöDwr‚“°¢–b‡7FFRçvRÓÓÒvv—Br’²v—BÆöDwr‚“²v—BÆöDv—B‚“²Ð¢Òf–æÆÇ’°¢6WDÆöF–ær†fÇ6R“°¢Ð¢Ð ¢7–æ2gVæ7F–öâ6÷•76‚†æÖR’²6†÷u&W7VÇB†v—B’‚v6÷•÷76…÷V&Æ–5ö¶W’rÂæÖR’“²Ð¢7–æ2gVæ7F–öâW‡÷'E76‚†æÖR’°¢6öç7B&W7VÇBÒv—B’‚vW‡÷'E÷76…÷V&Æ–5ö¶W’rÂæÖR“°¢–b‡6†÷u&W7VÇB‡&W7VÇB’bb&W7VÇBçF‚’Fö7B†[{.XÊþX{®X‹G·&W7VÇBçF‡Ö“°¢Ð¢7–æ2gVæ7F–öâFE76…FôvVçB†æÖR’°¢6öç7B&W7VÇBÒv—B’‚vFE÷76…ö¶W•÷FõövVçBrÂæÖR“°¢–b‡6†÷u&W7VÇB‡&W7VÇB’’°¢v—B&öÖ—6RæÆÂ…¶ÆöE76‚‚’ÂÆöDF6†&ö&B‚•Ò“°¢Ð¢Ð ¢7–æ2gVæ7F–öâÆöDvVçDÖævW"‚’°¢6öç7B&W7VÇBÒv—B’‚vÆ—7E÷76…övVçBr“°¢–b‚&W7VÇBæö²’°¢6†÷u&W7VÇB‡&W7VÇB“°¢&VæFW$vVçDÖævW"‡²f–Æ&ÆS¢fÇ6RÂÖævVC¢fÇ6RÂ7FGW3¢~iÊ®ZZ®X¹RrÂ–FVçF—F–W3¢µÒÒ“°¢&WGW&ã°¢Ð¢&VæFW$vVçDÖævW"‡&W7VÇB“°¢Ð ¢gVæ7F–öâ&VæFW$vVçDÖævW"‡&W7VÇB’°¢B‚r6vVçBÖÖævW"×7FGW2r’çFW‡D6öçFVçBÒ&W7VÇBç7FGW2ÇÂ~iÊ®YYþX¹Rs°¢B‚r6vVçB×7F'Br’æ†–FFVâÒ&W7VÇBæf–Æ&ÆS°¢B‚r6vVçB×7F÷r’æF—6&ÆVBÒ&W7VÇBæÖævVC°¢B‚r6vVçB×7F÷r’çF—FÆRÒ&W7VÇBæÖævVBò~XÎjÚ.yK¶W’ÖævW"YYþX¹^y¨BvVçBr¢~X8^XúþXÎjÚ"¶W’ÖævW"YYþX¹^y¨BvVçBs°¢6öç7B–FVçF—F–W2Ò&W7VÇBæ–FVçF—F–W2ÇÂµÓ°¢B‚r6vVçBÖ6ÆV"r’æF—6&ÆVBÒ–FVçF—F–W2æÆVæwF‚ÓÓÒ°¢B‚r6vVçBÖV×G’r’æ6Æ74Æ—7BçFövvÆR‚wf—6–&ÆRrÂ–FVçF—F–W2æÆVæwF‚ÓÓÒ“°¢6öç7B&öG’ÒB‚r6vVçBÖ&öG’r“°¢&öG’æ–ææW$…DÔÂÒrs°¢–FVçF—F–W2æf÷$V6‚†–FVçF—G’Óâ°¢6öç7BG"ÒFö7VÖVçBæ7&VFTVÆVÖVçB‚wG"r“°¢G"æ6Æ74æÖRÒvFF×&÷rs°¢G"æVæB†6VÆÂ†–FVçF—G’æÆö6ÅöæÖRÇÂ–FVçF—G’æ6öÖÖVçBÇÂtvVçB¶W’r’“°¢G"æVæB†6VÆÂ†–FVçF—G’æÆv÷&—F†ÒÇÂrÒr’“°¢G"æVæB†6VÆÂ†–FVçF—G’æf–ævW'&–çBÇÂrÒrÂvÖöæòr’“°¢6öç7B7F–öç2ÒFö7VÖVçBæ7&VFTVÆVÖVçB‚wFBr“°¢7F–öç2æ6Æ74æÖRÒw&–v‡Bs°¢6öç7Bw&ÒFö7VÖVçBæ7&VFTVÆVÖVçB‚vF—br“°¢w&æ6Æ74æÖRÒw&÷rÖ7F–öç2s°¢w&æVæB†7F–öä'WGFöâ‚~z{¾™šBrÂwF&ÆW#§G&6‚rÂ‚’Óâ&VÖ÷fTvVçD–FVçF—G’†–FVçF—G’æf–ævW'&–çBÂ–FVçF—G’æÆö6ÅöæÖRÇÂ–FVçF—G’æ6öÖÖVçBÇÂ–FVçF—G’æf–ævW'&–çB’’“°¢7F–öç2æVæB‡w&“°¢G"æVæB†7F–öç2“°¢&öG’æVæB‡G"“°¢Ò“°¢Ð ¢7–æ2gVæ7F–öâ÷VävVçDÖævW"‚’°¢B‚r6vVçBÖF–Æörr’ç6†÷tÖöFÂ‚“°¢v—BÆöDvVçDÖævW"‚“°¢Ð ¢7–æ2gVæ7F–öâ7F'DvVçB‚’°¢–b‡6†÷u&W7VÇB†v—B’‚w7F'E÷76…övVçBr’’’²v—B&öÖ—6RæÆÂ…¶ÆöDvVçDÖævW"‚’ÂÆöE76‚‚•Ò“²Ð¢Ð ¢7–æ2gVæ7F–öâ&VÖ÷fTvVçD–FVçF—G’†f–ævW'&–çBÂÆ&VÂ’°¢–b‚v–æF÷ræ6öæf—&Ò†z+®Zé®Šh[éâ54‚vVçBz{¾™šN8ÂG¶Æ&VÇÞ8ÞûÉð ®zÎz)þKˆ®y¨B¶W’j©NjŽKˆÞiÈ>Š*¾XŠ®™šN8&’’&WGW&ã°¢–b‡6†÷u&W7VÇB†v—B’‚w&VÖ÷fU÷76…övVçEö¶W’rÂf–ævW'&–çB’’’v—B&öÖ—6RæÆÂ…¶ÆöDvVçDÖævW"‚’ÂÆöE76‚‚•Ò“°¢Ð ¢7–æ2gVæ7F–öâ6ÆV$vVçB‚’°¢–b‚v–æF÷ræ6öæf—&Ò†z+®Zé®Šhkˆ^z›¢54‚vVçBXZ~y¨Nh˜iÈ’¶WžûÉð ®zÎz)þKˆ®y¨B¶W’j©NjŽKˆÞiÈ>Š*¾XŠ®™šN8&’’&WGW&ã°¢–b‡6†÷u&W7VÇB†v—B’‚v6ÆV%÷76…övVçBr’’’v—B&öÖ—6RæÆÂ…¶ÆöDvVçDÖævW"‚’ÂÆöE76‚‚•Ò“°¢Ð ¢7–æ2gVæ7F–öâ7F÷vVçB‚’°¢–b‚v–æF÷ræ6öæf—&Ò‚~z+®Zé®ŠhXÎjÚ.yK¶W’ÖævW"YYþX¹^y¨B54‚vVçNûÉòr’’&WGW&ã°¢–b‡6†÷u&W7VÇB†v—B’‚w7F÷÷76…övVçBr’’’v—B&öÖ—6RæÆÂ…¶ÆöDvVçDÖævW"‚’ÂÆöE76‚‚•Ò“°¢Ð¢7–æ2gVæ7F–öâFVÆWFU76‚†æÖR’°¢–b‚v–æF÷ræ6öæf—&Ò†z+®Zé®ŠhXŠ®™šB54‚¶Wž8ÂG¶æÖWÞ8ÞûÉõÆåÆî˜	žiÈ>XŠ®™šB&—fFR¶W’ˆˆrçV.ûÈÎK‰NxJk9^[êžXéþ8&’’&WGW&ã°¢–b‡6†÷u&W7VÇB†v—B’‚vFVÆWFU÷76…ö¶W’rÂæÖR’’’v—BÆöE76‚‚“°¢Ð¢7–æ2gVæ7F–öâ6÷”wr†f–ævW'&–çB’²6†÷u&W7VÇB†v—B’‚v6÷•öwu÷V&Æ–5ö¶W’rÂf–ævW'&–çB’“²Ð¢7–æ2gVæ7F–öâW‡÷'Dwr†f–ævW'&–çB’°¢6öç7B&W7VÇBÒv—B’‚vW‡÷'Eöwu÷V&Æ–5ö¶W’rÂf–ævW'&–çB“°¢–b‡6†÷u&W7VÇB‡&W7VÇB’bb&W7VÇBçF‚’Fö7B†[{.XÊþX{®ˆ{2G·&W7VÇBçF‡Ö“°¢Ð¢7–æ2gVæ7F–öâFVÆWFTwr†f–ævW'&–çBÂÆ&VÂ’°¢–b‚v–æF÷ræ6öæf—&Ò†z+®Zé®ŠhXŠ®™šBur¶Wž8ÂG¶Æ&VÇÞ8ÞûÉõÆåÆå6V7&WB¶W’ˆˆrV&Æ–2¶W’˜;ÞiÈ>XŠ®™šNûÈÎK‰NxJk9^[êžXéþ8&’’&WGW&ã°¢–b‡6†÷u&W7VÇB†v—B’‚vFVÆWFUöwuö¶W’rÂf–ævW'&–çB’’’°¢7FFRç6VÆV7FVDwrÒrs°¢v—BÆöDwr‚“°¢Ð¢Ð ¢gVæ7F–öâWFFTv—Df–ævW'&–çB‚’²B‚r6v—BÖf–ævW'&–çBr’çfÇVRÒB‚r6v—B×6–væ–ærÖ¶W’r’çfÇVRÇÂrs²Ð ¢7–æ2gVæ7F–öâ6fTv—D–FVçF—G’‚’°¢6öç7B&W7VÇBÒv—B’‚w6fUöv—Eö–FVçF—G’rÂB‚r6v—BÖæÖRr’çfÇVRçG&–Ò‚’ÂB‚r6v—BÖVÖ–Âr’çfÇVRçG&–Ò‚’“°¢–b‡6†÷u&W7VÇB‡&W7VÇB’’v—BÆöDv—B‚“°¢Ð ¢7–æ2gVæ7F–öâ6fTv—E6–væ–ær‚’°¢6öç7B&W7VÇBÒv—B’‚w6fUöv—E÷6–væ–ærrÂB‚r6v—B×6–væ–ærÖ¶W’r’çfÇVRÇÂrrÂB‚r6v—B×6–væ–ærÖVæ&ÆVBr’æ6†V6¶VB“°¢–b‡6†÷u&W7VÇB‡&W7VÇB’’v—BÆöDv—B‚“°¢Ð ¢7–æ2gVæ7F–öâ7V&Ö—E76‚†WfVçB’°¢WfVçBç&WfVçDFVfVÇB‚“°¢6öç7Bf÷&ÒÒWfVçBæ7W'&VçEF&vWC°¢6öç7BFFÒö&¦V7Bæg&öÔVçG&–W2†æWrf÷&ÔFF†f÷&Ò’“°¢–b†FFç77‡&6RÓÒFFæ6öæf—&Ò’²Fö7B‚~XZžjÊ77‡&6RKˆÞKˆˆ{BrÂvW'&÷"r“²&WGW&ã²Ð¢B‚r776‚×7V&Ö—Br’æF—6&ÆVBÒG'VS°¢6öç7B&W7VÇBÒv—B’‚v7&VFU÷76…ö¶W’rÂ²f–ÆVæÖS¢FFæf–ÆVæÖRÂ6öÖÖVçC¢FFæ6öÖÖVçBÂÆv÷&—F†Ó¢FFæÆv÷&—F†ÒÂ77‡&6S¢FFç77‡&6RÒ“°¢B‚r776‚×7V&Ö—Br’æF—6&ÆVBÒfÇ6S°¢–b‡6†÷u&W7VÇB‡&W7VÇBÂu54‚¶W’[»®z¸¾ZèÎh‰r’’²B‚r776‚ÖF–Æörr’æ6Æ÷6R‚“²f÷&Òç&W6WB‚“²f÷&ÒæVÆVÖVçG2æf–ÆVæÖRçfÇVRÒv–E÷'6s²v—BÆöE76‚‚“²Ð¢Ð ¢7–æ2gVæ7F–öâ7V&Ö—Dwr†WfVçB’°¢WfVçBç&WfVçDFVfVÇB‚“°¢6öç7Bf÷&ÒÒWfVçBæ7W'&VçEF&vWC°¢6öç7BFFÒö&¦V7Bæg&öÔVçG&–W2†æWrf÷&ÔFF†f÷&Ò’“°¢B‚r6wr×7V&Ö—Br’æF—6&ÆVBÒG'VS°¢6öç7B&W7VÇBÒv—B’‚v7&VFUöwuö¶W’rÂ²æÖS¢FFææÖRÂVÖ–Ã¢FFæVÖ–ÂÂÆv÷&—F†Ó¢FFæÆv÷&—F†ÒÂW‡—&S¢FFæW‡—&RÒ“°¢B‚r6wr×7V&Ö—Br’æF—6&ÆVBÒfÇ6S°¢–b‡6†÷u&W7VÇB‡&W7VÇBÂtur¶W’[»®z¸¾ZèÎh‰r’’²B‚r6wrÖF–Æörr’æ6Æ÷6R‚“²f÷&Òç&W6WB‚“²v—BÆöDwr‚“²Ð¢Ð ¢gVæ7F–öâ6WEF†VÖR‡F†VÖR’°¢Fö7VÖVçBæFö7VÖVçDVÆVÖVçBæFF6WBçF†VÖRÒF†VÖS°¢G'’²Æö6Å7F÷&vRç6WD—FVÒ‚v¶W’ÖÖævW"×F†VÖRrÂF†VÖR“²Ò6F6‚…ò’·Ð¢6öç7BF&²ÒF†VÖRÓÓÒvF&²s°¢B‚r7F†VÖR×FW‡Br’çFW‡D6öçFVçBÒF&²ò~k{®ˆ›.jŠ[Èòr¢~k{ˆ›.jŠ[Èòs°¢B‚r7F†VÖRÖ'Fâæ–6öâr’æFF6WBæ–6öâÒF&²òwF&ÆW#§7Vâr¢wF&ÆW#¦Öööâs°¢v–æF÷rä–6öæ–g”Æö6Âç&VæFW$–6öç2‚B‚r7F†VÖRÖ'Fâr’“°¢Ð ¢gVæ7F–öâ&–æDWfVçG2‚’°¢BB‚rææbÖ—FVÒr’æf÷$V6‚†'FâÓâ'FâæFDWfVçDÆ—7FVæW"‚v6Æ–6²rÂ‚’Óâ7v—F6…vR†'FâæFF6WBçvR’’“°¢B‚r7&Vg&W6‚Ö'Fâr’æFDWfVçDÆ—7FVæW"‚v6Æ–6²rÂ&Vg&W6„7W'&VçB“°¢B‚r7F†VÖRÖ'Fâr’æFDWfVçDÆ—7FVæW"‚v6Æ–6²rÂ‚’Óâ6WEF†VÖR†Fö7VÖVçBæFö7VÖVçDVÆVÖVçBæFF6WBçF†VÖRÓÓÒvF&²ròvÆ–v‡Br¢vF&²r’“°¢B‚r776‚Ö7&VFRÖ'Fâr’æFDWfVçDÆ—7FVæW"‚v6Æ–6²rÂ‚’ÓâB‚r776‚ÖF–Æörr’ç6†÷tÖöFÂ‚’“°¢B‚r6vVçBÖÖævRÖ'Fâr’æFDWfVçDÆ—7FVæW"‚v6Æ–6²rÂ÷VävVçDÖævW"“°¢B‚r6vVçBÖ6æ6VÂ×‚r’æFDWfVçDÆ—7FVæW"‚v6Æ–6²rÂ‚’ÓâB‚r6vVçBÖF–Æörr’æ6Æ÷6R‚’“°¢B‚r6vVçBÖ6Æ÷6Rr’æFDWfVçDÆ—7FVæW"‚v6Æ–6²rÂ‚’ÓâB‚r6vVçBÖF–Æörr’æ6Æ÷6R‚’“°¢B‚r6vVçB×7F'Br’æFDWfVçDÆ—7FVæW"‚v6Æ–6²rÂ7F'DvVçB“°¢B‚r6vVçBÖ6ÆV"r’æFDWfVçDÆ—7FVæW"‚v6Æ–6²rÂ6ÆV$vVçB“°¢B‚r6vVçB×7F÷r’æFDWfVçDÆ—7FVæW"‚v6Æ–6²rÂ7F÷vVçB“°¢B‚r6wrÖ7&VFRÖ'Fâr’æFDWfVçDÆ—7FVæW"‚v6Æ–6²rÂ‚’ÓâB‚r6wrÖF–Æörr’ç6†÷tÖöFÂ‚’“°¢B‚r776‚Ö6æ6VÂr’æFDWfVçDÆ—7FVæW"‚v6Æ–6²rÂ‚’ÓâB‚r776‚ÖF–Æörr’æ6Æ÷6R‚’“°¢B‚r776‚Ö6æ6VÂ×‚r’æFDWfVçDÆ—7FVæW"‚v6Æ–6²rÂ‚’ÓâB‚r776‚ÖF–Æörr’æ6Æ÷6R‚’“°¢B‚r6wrÖ6æ6VÂr’æFDWfVçDÆ—7FVæW"‚v6Æ–6²rÂ‚’ÓâB‚r6wrÖF–Æörr’æ6Æ÷6R‚’“°¢B‚r6wrÖ6æ6VÂ×‚r’æFDWfVçDÆ—7FVæW"‚v6Æ–6²rÂ‚’ÓâB‚r6wrÖF–Æörr’æ6Æ÷6R‚’“°¢B‚r776‚Öf÷&Òr’æFDWfVçDÆ—7FVæW"‚w7V&Ö—BrÂ7V&Ö—E76‚“°¢B‚r6wrÖf÷&Òr’æFDWfVçDÆ—7FVæW"‚w7V&Ö—BrÂ7V&Ö—Dwr“°¢B‚r6v—B×6–væ–ærÖ¶W’r’æFDWfVçDÆ—7FVæW"‚v6†ævRrÂWFFTv—Df–ævW'&–çB“°¢B‚r6v—B×6fRÖ–FVçF—G’r’æFDWfVçDÆ—7FVæW"‚v6Æ–6²rÂ6fTv—D–FVçF—G’“°¢B‚r6v—B×6fR×6–væ–ærr’æFDWfVçDÆ—7FVæW"‚v6Æ–6²rÂ6fTv—E6–væ–ær“°¢BB‚u¶FFÖ7F–öãÒ&÷Vâ×76‚Ö7&VFR%Òr’æf÷$V6‚†'FâÓâ'FâæFDWfVçDÆ—7FVæW"‚v6Æ–6²rÂ‚’Óâ²7v—F6…vR‚w76‚rÂfÇ6R“²B‚r776‚ÖF–Æörr’ç6†÷tÖöFÂ‚“²Ò’“°¢BB‚u¶FFÖ7F–öãÒ&÷VâÖwrÖ7&VFR%Òr’æf÷$V6‚†'FâÓâ'FâæFDWfVçDÆ—7FVæW"‚v6Æ–6²rÂ‚’Óâ²7v—F6…vR‚vwrrÂfÇ6R“²B‚r6wrÖF–Æörr’ç6†÷tÖöFÂ‚“²Ò’“°¢BB‚u¶FFÖ7F–öãÒ&÷VâÖv—B%Òr’æf÷$V6‚†'FâÓâ'FâæFDWfVçDÆ—7FVæW"‚v6Æ–6²rÂ‚’Óâ7v—F6…vR‚vv—Br’’“°¢Ð ¢7–æ2gVæ7F–öâ&ö÷E&VÄ'&–FvR‚’°¢7FFRæ'&–FvRÒv–æF÷rç—vV'f–Wræ“°¢7FFRæÖö6²ÒfÇ6S°¢v—BÆöD–æfò‚“°¢v—B&Vg&W6„7W'&VçB‚“°¢Ð ¢7–æ2gVæ7F–öâÆöDÖö6´FF‚’°¢–b‡7FFRæ'&–FvR’&WGW&ã°¢7FFRæÖö6²ÒG'VS°¢v—BÆöD–æfò‚“°¢v—B&Vg&W6„7W'&VçB‚“°¢Fö7B‚~xþŠkÞYšŽš	ŠkÞjŠ[ÈþûÉ®yºîX˜ÞšþzK®zøNKè¾‹8~ii’rÂw7V66W72rÂ#C“°¢Ð ¢gVæ7F–öâ&ö÷B‚’°¢v–æF÷rä–6öæ–g”Æö6Âç&VæFW$–6öç2‚“°¢&–æDWfVçG2‚“°¢ÆWBF†VÖRÒvÆ–v‡Bs°¢G'’²F†VÖRÒÆö6Å7F÷&vRævWD—FVÒ‚v¶W’ÖÖævW"×F†VÖRr’ÇÂvÆ–v‡Bs²Ò6F6‚…ò’·Ð¢6WEF†VÖR‡F†VÖR“°¢ÆWBfÆÆ&6µF–ÖW"Òv–æF÷rç6WEF–ÖV÷WB†ÆöDÖö6´FFÂ3S“°¢v–æF÷ræFDWfVçDÆ—7FVæW"‚w—vV'f–Ww&VG’rÂ7–æ2‚’Óâ°¢v–æF÷ræ6ÆV%F–ÖV÷WB†fÆÆ&6µF–ÖW"“°¢v—B&ö÷E&VÄ'&–FvR‚“°¢Ò“°¢Ð ¢v–æF÷ræÆöDÖö6´FFÒÆöDÖö6´FF°¢Fö7VÖVçBæFDWfVçDÆ—7FVæW"‚tDôÔ6öçFVçDÆöFVBrÂ&ö÷B“°§Ò’‚“°
+  async function loadGit() {
+    const [configResult, keysResult] = await Promise.all([api('read_git_config'), api('list_gpg_keys')]);
+    if (!configResult.ok) {
+      $('#git-status').textContent = configResult.error || 'Git è¨­å®šè®€å–å¤±æ•—';
+      return;
+    }
+    state.gitConfig = configResult.config;
+    state.gpgKeys = keysResult.keys || [];
+    const cfg = state.gitConfig;
+    $('#git-name').value = cfg.name || '';
+    $('#git-email').value = cfg.email || '';
+    $('#git-signing-enabled').checked = !!cfg.commit_gpgsign && !!cfg.tag_gpgsign;
+    $('#git-format').value = cfg.gpg_format || 'openpgp';
+    $('#git-program').value = cfg.gpg_program || 'C:\\Program Files\\Git\\usr\\bin\\gpg.exe';
+    const select = $('#git-signing-key');
+    select.replaceChildren();
+    if (state.gpgKeys.length === 0) {
+      const opt = document.createElement('option'); opt.value = ''; opt.textContent = 'æ‰¾ä¸åˆ°å¯ç”¨çš„ GPG Key'; select.append(opt);
+    } else {
+      state.gpgKeys.forEach(key => {
+        const opt = document.createElement('option');
+        opt.value = key.fingerprint;
+        opt.textContent = `${key.user_id || key.email || key.name} â€” â€¦${key.fingerprint.slice(-16)}`;
+        select.append(opt);
+      });
+    }
+    if (cfg.signing_key && state.gpgKeys.some(key => key.fingerprint === cfg.signing_key)) select.value = cfg.signing_key;
+    updateGitFingerprint();
+    const signingMismatch = !!cfg.commit_gpgsign !== !!cfg.tag_gpgsign;
+    $('#git-status').textContent = signingMismatch ? 'Commit / Tag ç°½ç« è¨­å®šç›®å‰ä¸ä¸€è‡´ï¼›é‡æ–°å¥—ç”¨å¯åŒæ­¥å…©è€…' : 'å·²è¼‰å…¥ Git for Windows å…¨åŸŸè¨­å®šï¼›Commit + Tag ä½¿ç”¨åŒä¸€çµ„ GPG Key';
+  }
+
+  async function refreshCurrent() {
+    setLoading(true);
+    try {
+      if (state.page === 'dashboard') await loadDashboard();
+      if (state.page === 'ssh') await loadSsh();
+      if (state.page === 'gpg') await loadGpg();
+      if (state.page === 'git') await loadGit();
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function copySsh(name) { showResult(await api('copy_ssh_public_key', name)); }
+  async function exportSsh(name) {
+    const result = await api('export_ssh_public_key', name);
+    if (showResult(result) && result.path) toast(`å·²åŒ¯å‡ºè‡³ ${result.path}`);
+  }
+  async function addAgent(name) { if (showResult(await api('add_ssh_key_to_agent', name))) await loadSsh(); }
+
+  async function loadAgentManager() {
+    const result = await api('list_ssh_agent');
+    const body = $('#agent-body');
+    body.replaceChildren();
+    const identities = result.identities || [];
+    const available = !!result.available;
+    $('#agent-manager-status').textContent = result.ok ? `Agentï¼š${result.status || (available ? 'å·²å•Ÿå‹•' : 'æœªå•Ÿå‹•')}` : result.error || 'Agent ç‹€æ…‹è®€å–å¤±æ•—';
+    $('#agent-empty').textContent = available ? 'Agent ç›®å‰æ²’æœ‰è¼‰å…¥ Key' : 'Agent å°šæœªå•Ÿå‹•';
+    $('#agent-empty').classList.toggle('visible', identities.length === 0);
+    $('#agent-start').hidden = available;
+    $('#agent-clear').disabled = !available || identities.length === 0;
+    $('#agent-stop').disabled = !available || !result.managed;
+    identities.forEach(identity => {
+      const tr = document.createElement('tr');
+      tr.className = 'key-row';
+      tr.append(cell(identity.local_name || identity.comment || 'Agent Key'));
+      tr.append(cell(identity.algorithm || '-'));
+      tr.append(cell(identity.fingerprint || '-', 'mono'));
+      const actions = document.createElement('td');
+      actions.className = 'right';
+      const wrap = document.createElement('div');
+      wrap.className = 'row-actions';
+      wrap.append(actionButton('ç§»é™¤', 'tabler:trash', () => removeAgentIdentity(identity.fingerprint, identity.local_name || identity.comment || identity.fingerprint)));
+      actions.append(wrap);
+      tr.append(actions);
+      body.append(tr);
+    });
+  }
+
+  async function openAgentManager() {
+    $('#agent-dialog').showModal();
+    await loadAgentManager();
+  }
+
+  async function startAgent() {
+    if (showResult(await api('start_ssh_agent'))) await Promise.all([loadAgentManager(), loadSsh()]);
+  }
+
+  async function removeAgentIdentity(fingerprint, label) {
+    if (!window.confirm(`ç¢ºå®šè¦å¾ž SSH Agent ç§»é™¤ã€Œ${label}ã€ï¼Ÿ
+
+ç¡¬ç¢Ÿä¸Šçš„ Key æª”æ¡ˆä¸æœƒè¢«åˆªé™¤ã€‚`)) return;
+    if (showResult(await api('remove_ssh_agent_key', fingerprint))) await Promise.all([loadAgentManager(), loadSsh()]);
+  }
+
+  async function clearAgent() {
+    if (!window.confirm(`ç¢ºå®šè¦æ¸…ç©º SSH Agent å…§çš„æ‰€æœ‰ Keyï¼Ÿ
+
+ç¡¬ç¢Ÿä¸Šçš„ Key æª”æ¡ˆä¸æœƒè¢«åˆªé™¤ã€‚`)) return;
+    if (showResult(await api('clear_ssh_agent'))) await Promise.all([loadAgentManager(), loadSsh()]);
+  }
+
+  async function stopAgent() {
+    if (!window.confirm('ç¢ºå®šè¦åœæ­¢ç”± Key Manager å•Ÿå‹•çš„ SSH Agentï¼Ÿ')) return;
+    if (showResult(await api('stop_ssh_agent'))) await Promise.all([loadAgentManager(), loadSsh()]);
+  }
+  async function deleteSsh(name) {
+    if (!window.confirm(`ç¢ºå®šè¦åˆªé™¤ SSH Keyã€Œ${name}ã€ï¼Ÿ\n\né€™æœƒåˆªé™¤ Private Key èˆ‡ .pubï¼Œä¸”ç„¡æ³•å¾©åŽŸã€‚`)) return;
+    if (showResult(await api('delete_ssh_key', name))) await loadSsh();
+  }
+  async function copyGpg(fingerprint) { showResult(await api('copy_gpg_public_key', fingerprint)); }
+  async function exportGpg(fingerprint) {
+    const result = await api('export_gpg_public_key', fingerprint);
+    if (showResult(result) && result.path) toast(`å·²åŒ¯å‡ºè‡³ ${result.path}`);
+  }
+  async function deleteGpg(fingerprint, label) {
+    if (!window.confirm(`ç¢ºå®šè¦åˆªé™¤ GPG Keyã€Œ${label}ã€ï¼Ÿ\n\nSecret Key èˆ‡ Public Key éƒ½æœƒåˆªé™¤ï¼Œä¸”ç„¡æ³•å¾©åŽŸã€‚`)) return;
+    if (showResult(await api('delete_gpg_key', fingerprint))) {
+      state.selectedGpg = '';
+      await loadGpg();
+    }
+  }
+
+  function updateGitFingerprint() { $('#git-fingerprint').value = $('#git-signing-key').value || ''; }
+
+  async function saveGitIdentity() {
+    const result = await api('save_git_identity', $('#git-name').value.trim(), $('#git-email').value.trim());
+    if (showResult(result)) await loadGit();
+  }
+
+  async function saveGitSigning() {
+    const result = await api('save_git_signing', $('#git-signing-key').value || '', $('#git-signing-enabled').checked);
+    if (showResult(result)) await loadGit();
+  }
+
+  async function submitSsh(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const data = Object.fromEntries(new FormData(form));
+    if (data.passphrase !== data.confirm) { toast('å…©æ¬¡ Passphrase ä¸ä¸€è‡´', 'error'); return; }
+    $('#ssh-submit').disabled = true;
+    const result = await api('create_ssh_key', { filename: data.filename, comment: data.comment, algorithm: data.algorithm, passphrase: data.passphrase });
+    $('#ssh-submit').disabled = false;
+    if (showResult(result, 'SSH Key å»ºç«‹å®Œæˆ')) { $('#ssh-dialog').close(); form.reset(); form.elements.filename.value = 'id_rsa'; await loadSsh(); }
+  }
+
+  async function submitGpg(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const data = Object.fromEntries(new FormData(form));
+    $('#gpg-submit').disabled = true;
+    const result = await api('create_gpg_key', { name: data.name, email: data.email, algorithm: data.algorithm, expire: data.expire });
+    $('#gpg-submit').disabled = false;
+    if (showResult(result, 'GPG Key å»ºç«‹å®Œæˆ')) { $('#gpg-dialog').close(); form.reset(); await loadGpg(); }
+  }
+
+  function setTheme(theme) {
+    document.documentElement.dataset.theme = theme;
+    try { localStorage.setItem('key-manager-theme', theme); } catch (_) {}
+    const dark = theme === 'dark';
+    $('#theme-text').textContent = dark ? 'æ·ºè‰²æ¨¡å¼' : 'æ·±è‰²æ¨¡å¼';
+    $('#theme-btn .icon').dataset.icon = dark ? 'tabler:sun' : 'tabler:moon';
+    window.IconifyLocal.renderIcons($('#theme-btn'));
+  }
+
+  function bindEvents() {
+    $$('.nav-item').forEach(btn => btn.addEventListener('click', () => switchPage(btn.dataset.page)));
+    $('#refresh-btn').addEventListener('click', refreshCurrent);
+    $('#theme-btn').addEventListener('click', () => setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
+    $('#ssh-create-btn').addEventListener('click', () => $('#ssh-dialog').showModal());
+    $('#agent-manage-btn').addEventListener('click', openAgentManager);
+    $('#agent-cancel-x').addEventListener('click', () => $('#agent-dialog').close());
+    $('#agent-close').addEventListener('click', () => $('#agent-dialog').close());
+    $('#agent-start').addEventListener('click', startAgent);
+    $('#agent-clear').addEventListener('click', clearAgent);
+    $('#agent-stop').addEventListener('click', stopAgent);
+    $('#gpg-create-btn').addEventListener('click', () => $('#gpg-dialog').showModal());
+    $('#ssh-cancel').addEventListener('click', () => $('#ssh-dialog').close());
+    $('#ssh-cancel-x').addEventListener('click', () => $('#ssh-dialog').close());
+    $('#gpg-cancel').addEventListener('click', () => $('#gpg-dialog').close());
+    $('#gpg-cancel-x').addEventListener('click', () => $('#gpg-dialog').close());
+    $('#ssh-form').addEventListener('submit', submitSsh);
+    $('#gpg-form').addEventListener('submit', submitGpg);
+    $('#git-signing-key').addEventListener('change', updateGitFingerprint);
+    $('#git-save-identity').addEventListener('click', saveGitIdentity);
+    $('#git-save-signing').addEventListener('click', saveGitSigning);
+    $$('[data-action="open-ssh-create"]').forEach(btn => btn.addEventListener('click', () => { switchPage('ssh', false); $('#ssh-dialog').showModal(); }));
+    $$('[data-action="open-gpg-create"]').forEach(btn => btn.addEventListener('click', () => { switchPage('gpg', false); $('#gpg-dialog').showModal(); }));
+    $$('[data-action="open-git"]').forEach(btn => btn.addEventListener('click', () => switchPage('git')));
+  }
+
+  async function bootRealBridge() {
+    state.bridge = window.pywebview.api;
+    state.mock = false;
+    await loadAppInfo();
+    await refreshCurrent();
+  }
+
+  async function loadMockData() {
+    if (state.bridge) return;
+    state.mock = true;
+    await loadAppInfo();
+    await refreshCurrent();
+    toast('ç€è¦½å™¨é è¦½æ¨¡å¼ï¼šç›®å‰é¡¯ç¤ºç¯„ä¾‹è³‡æ–™', 'success', 2400);
+  }
+
+  function boot() {
+    window.IconifyLocal.renderIcons();
+    bindEvents();
+    let theme = 'light';
+    try { theme = localStorage.getItem('key-manager-theme') || 'light'; } catch (_) {}
+    setTheme(theme);
+    let fallbackTimer = window.setTimeout(loadMockData, 350);
+    window.addEventListener('pywebviewready', async () => {
+      window.clearTimeout(fallbackTimer);
+      await bootRealBridge();
+    });
+  }
+
+  window.loadMockData = loadMockData;
+  document.addEventListener('DOMContentLoaded', boot);
+})();

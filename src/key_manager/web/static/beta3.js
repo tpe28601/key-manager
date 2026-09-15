@@ -128,9 +128,47 @@
     }
   }
 
+  function applyTheme(theme) {
+    const value = theme === 'dark' ? 'dark' : 'light';
+    document.documentElement.dataset.theme = value;
+    const dark = value === 'dark';
+    const text = $('#theme-text');
+    const iconEl = $('#theme-btn .icon');
+    if (text) text.textContent = dark ? '淺色模式' : '深色模式';
+    if (iconEl) {
+      iconEl.dataset.icon = dark ? 'tabler:sun' : 'tabler:moon';
+      window.IconifyLocal?.renderIcons($('#theme-btn'));
+    }
+  }
+
+  async function restoreTheme() {
+    const api = bridge();
+    if (!api?.get_theme) return;
+    try {
+      const result = await api.get_theme();
+      if (result?.ok) applyTheme(result.theme);
+    } catch (_) {}
+  }
+
+  async function persistCurrentTheme() {
+    const api = bridge();
+    if (!api?.set_theme) return;
+    const value = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+    try {
+      const result = await api.set_theme(value);
+      if (!result?.ok) notify(result?.error || '主題設定儲存失敗', 'error');
+    } catch (error) {
+      notify(error?.message || String(error), 'error');
+    }
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
     installSshPathControls();
+    $('#theme-btn')?.addEventListener('click', () => window.setTimeout(persistCurrentTheme, 0));
     window.setTimeout(refreshPath, 420);
   });
-  window.addEventListener('pywebviewready', refreshPath);
+  window.addEventListener('pywebviewready', () => {
+    void refreshPath();
+    void restoreTheme();
+  });
 })();

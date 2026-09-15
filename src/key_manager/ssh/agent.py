@@ -9,6 +9,7 @@ import re
 import tempfile
 
 from key_manager.command import CommandResult, run_command
+from key_manager.settings import clear_managed_agent_env, get_managed_agent_env, set_managed_agent_env
 from key_manager.git.git_for_windows import (
     FIXED_GIT_SSH_ADD,
     FIXED_GIT_SSH_AGENT,
@@ -72,7 +73,20 @@ def fingerprint_public_key_line(public_key_line: str) -> str:
     return f"SHA256:{digest}"
 
 
+def _restore_managed_agent_env() -> None:
+    global _managed_agent_env
+    if not _managed_agent_env:
+        _managed_agent_env = get_managed_agent_env()
+
+
+def _forget_managed_agent_env() -> None:
+    global _managed_agent_env
+    _managed_agent_env = {}
+    clear_managed_agent_env()
+
+
 def _managed_env() -> dict[str, str] | None:
+    _restore_managed_agent_env()
     if not _managed_agent_env:
         return None
     env = dict(os.environ)
@@ -81,6 +95,7 @@ def _managed_env() -> dict[str, str] | None:
 
 
 def is_managed_agent() -> bool:
+    _restore_managed_agent_env()
     return bool(_managed_agent_env)
 
 
@@ -115,11 +130,7 @@ def _ssh_askpass_environment() -> dict[str, str]:
     }
 
 
-def get_agent_status() -> AgentStatus:
-    ssh_add = find_git_ssh_add()
-    if ssh_add is None:
-        return AgentStatus(False, frozenset(), f"找不到 Git for Windows ssh-add：{FIXED_GIT_SSH_ADD}")
-    result = _run_ssh_add([str(ssh_add), "-l"], timeout=10.0)
+def _status_from_result(result: CommandResult) -> AgentStatus:
     text = "\n".join(part for part in (result.stdout, result.stderr) if part).strip()
     if result.returncode == 0:
         fingerprints = frozenset(re.findall(r"SHA256:[^\s]+", result.stdout))
@@ -127,6 +138,24 @@ def get_agent_status() -> AgentStatus:
     if result.returncode == 1 and "no identities" in text.lower():
         return AgentStatus(True, frozenset(), text or "SSH Agent 尚未加入金鑰")
     return AgentStatus(False, frozenset(), text or "SSH Agent 未啟動或不可用")
+
+
+def get_agent_status() -> AgentStatus:
+    ssh_add = find_git_ssh_add()
+    if ssh_add is None:
+        return AgentStatus(False, frozenset(), f"找不到 Git for Windows ssh-add：{FIXED_GIT_SSH_ADD}")
+
+    _restore_managed_agent_env()
+    used_managed = bool(_managed_agent_env)
+    result = _run_ssh_add([str(ssh_add), "-l"], timeout=10.0)
+    status = _status_from_result(result)
+    if status.available or not used_managed:
+        return status
+
+    # A persisted Key Manager agent may have exited while the app was closed.
+    # Forget the stale socket/PID and retry the ambient environment once.
+    _forget_managed_agent_env()
+    return _status_from_result(run_command([str(ssh_add), "-l"], timeout=10.0))
 
 
 def list_agent_identities() -> list[AgentIdentity]:
@@ -181,6 +210,7 @@ def start_managed_agent() -> CommandResult:
     if not parsed:
         return CommandResult(1, result.stdout, result.stderr or "無法解析 ssh-agent 連線資訊")
     _managed_agent_env = parsed
+    set_managed_agent_env(parsed)
     status = get_agent_status()
     if not status.available:
         return CommandResult(1, result.stdout, status.message)
@@ -256,6 +286,7 @@ def stop_managed_agent() -> CommandResult:
     """Stop only an ssh-agent process that was launched by Key Manager."""
     global _managed_agent_env
 
+    _restore_managed_agent_env()
     if not _managed_agent_env:
         return CommandResult(1, "", "目前 Agent 不是由 Key Manager 啟動，無法由此停止")
     ssh_agent = find_git_ssh_agent()
@@ -265,5 +296,5 @@ def stop_managed_agent() -> CommandResult:
     env = _managed_env()
     result = run_command([str(ssh_agent), "-k"], timeout=15.0, env=env)
     if result.returncode == 0:
-        _managed_agent_env = {}
+        _forget_managed_agent_env()
     return result

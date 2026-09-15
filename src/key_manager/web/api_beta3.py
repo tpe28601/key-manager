@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from key_manager.settings import get_ssh_dir, reset_ssh_dir, set_ssh_dir
+from key_manager.settings import get_ssh_dir, get_theme, reset_ssh_dir, set_ssh_dir, set_theme
 from .api import KeyManagerApi as BaseKeyManagerApi
 
 
@@ -24,6 +24,17 @@ def _folder_dialog_type(webview_module: Any) -> Any:
 
 class KeyManagerApi(BaseKeyManagerApi):
     """Beta 3 API additions for persistent SSH local-key path settings."""
+
+
+    def get_theme(self) -> dict[str, Any]:
+        return _ok(theme=get_theme())
+
+    def set_theme(self, theme: str) -> dict[str, Any]:
+        try:
+            set_theme(theme)
+            return _ok(theme=get_theme())
+        except Exception as exc:
+            return _error(exc, theme=get_theme())
 
     def get_ssh_directory(self) -> dict[str, Any]:
         return _ok(ssh_dir=str(get_ssh_dir()))

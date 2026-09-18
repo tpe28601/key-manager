@@ -1,42 +1,39 @@
 # Key Manager
 
-**Key Manager 1.0.1** 是一套專為 Windows 設計的 SSH 與 GPG 金鑰管理工具，使用 Python + pywebview 提供桌面圖形介面，整合 Git for Windows 的 SSH、GPG 與 Git 全域簽章設定。
+**Key Manager 1.0.2** 是一套專為 Windows 打造的 SSH／GPG 金鑰管理工具，把散落在指令列裡的 `ssh-keygen`、`ssh-agent`、`gpg`、`git config` 操作，收進一個原生桌面視窗裡。不管是要生一把新的 SSH Key、把 Key 丟進 Agent、建立簽章用的 GPG Key，還是幫 Git commit 打開簽章，都可以在介面上點幾下完成，不用再背指令。
 
-Key Manager 的目標是把常見的 SSH Key、GPG Key、SSH Agent 與 Git Commit / Tag Signing 操作集中到同一個介面，同時避免在 UI 中顯示或匯出 Private Key。
+它是 Git for Windows 內建工具（`ssh.exe`、`ssh-agent.exe`、`ssh-keygen.exe`、`gpg.exe`）的前台介面，本身不做任何加密運算，也**不會顯示或匯出 Private Key**——Passphrase 一律交給 Git for Windows AskPass（SSH）或 GnuPG Pinentry（GPG）的原生視窗處理。
+
+作者：**Mike Lin**
 
 ## 功能總覽
 
-### SSH Key 管理
+一打開 Key Manager，你可以做到：
 
-- 掃描目前設定的 SSH Key 目錄。
-- 建立 **RSA 4096** 或 ED25519 SSH Key。
-- 預設建立名稱為 `id_rsa`，演算法為 **RSA 4096**。
-- 支援 SSH Private Key Passphrase。
+### SSH Key 管理
+- 掃描目前設定的 SSH Key 目錄，一眼看到所有 Key 的演算法與 Fingerprint。
+- 建立 **RSA 4096** 或 **ED25519** SSH Key（預設名稱 `id_rsa`、演算法 RSA 4096）。
+- 幫 Key 加上 Passphrase。
 - 複製或匯出 Public Key。
-- 刪除 SSH Key Pair。
-- 可自訂本機 SSH Key 儲存目錄。
+- 刪除不用的 Key Pair。
+- 自訂 SSH Key 的本機儲存目錄。
 
 ### SSH Agent 管理
-
-- 查看 SSH Agent 是否啟動及目前載入的 Key 數量。
-- 將指定 Private Key 加入 Agent。
-- 有 Passphrase 的 SSH Key 會透過 Git for Windows AskPass 視窗要求輸入密碼。
-- Key Manager 啟動的 Agent 連線資訊會保存於本機設定；重新開啟程式後會嘗試重新連回仍在執行的 Agent。
-- 可查看、移除、清空 Agent 內的 Key。
-- 僅允許停止由 Key Manager 自行啟動的 Agent。
+- 一眼看出 Agent 是否啟動、目前載入了幾把 Key。
+- 把指定的 Private Key 加入 Agent；有 Passphrase 的話會跳出 Git for Windows AskPass 視窗輸入。
+- Key Manager 自己啟動的 Agent，連線資訊會存起來，下次開程式會自動接回去。
+- 可以單獨移除、或一次清空 Agent 裡的 Key。
+- 只能停掉由 Key Manager 自己啟動的 Agent，不會誤殺你手動啟動的 Agent。
 
 ### GPG Key 管理
+- 透過 Git for Windows 內建的 GnuPG 環境列出 Secret / Public Key。
+- 建立 **RSA 4096** 或 **ED25519** GPG Key。
+- Passphrase 全程由 GnuPG 原生的 Pinentry 視窗處理，Key Manager 完全碰不到。
+- 複製或匯出 ASCII Armor 格式的 Public Key。
+- 刪除不需要的 Secret / Public Key。
 
-- 使用 Git for Windows 內建的 GnuPG 環境列出 Secret/Public Key。
-- 建立 **RSA 4096** 或 ED25519 GPG Key。
-- 預設演算法為 **RSA 4096**。
-- GPG Passphrase 完全交由 GnuPG 原生 Pinentry 視窗處理。
-- 複製或匯出 ASCII Armor Public Key。
-- 刪除 Secret/Public Key。
-
-### Git GPG Signing
-
-啟用「Git GPG 簽章」後，Commit 與 Tag 都會使用指定的完整 GPG Fingerprint 簽章：
+### Git Commit / Tag GPG Signing
+一鍵套用簽章設定，Key Manager 會幫你把下面這些全域 Git 設定寫好：
 
 ```text
 gpg.format=openpgp
@@ -47,35 +44,35 @@ tag.gpgSign=true
 ```
 
 ### 介面主題
+支援淺色／深色模式，設定會存在本機，下次開啟自動套用上次用的主題。
 
-支援淺色與深色模式。主題設定會保存於：
+## 安全設計
 
-```text
-%LOCALAPPDATA%\KeyManager\settings.json
-```
+Key Manager 是拿來管理金鑰的工具，安全性是第一原則：
 
-重新開啟 Key Manager 後會讀回上次使用的主題。
+- UI **不提供** SSH / GPG Private Key 內容顯示，也不提供匯出。
+- SSH Passphrase 不會被當成外部命令的參數傳遞。
+- SSH Key 加入 Agent 時，Passphrase 由 Git for Windows AskPass 原生視窗處理。
+- GPG Passphrase 全程交給 GnuPG / Pinentry，Key Manager 不讀取、不保存、不轉送。
+- 所有 Windows 外部 subprocess 呼叫都以隱藏 Console 視窗執行。
+- 本機保存的 SSH Agent 連線資訊只有 `SSH_AUTH_SOCK` / `SSH_AGENT_PID`，不含 Passphrase 或金鑰內容。
 
 ## 系統需求
 
 Key Manager 以 **Windows 10 / Windows 11** 為主要執行環境。
 
-正式 EXE 使用者需要：
+使用正式 EXE 需要：
 
 1. **Git for Windows**，預期安裝於 `C:\Program Files\Git`。
 2. **Microsoft Edge WebView2 Runtime**。
 
-自行建置另外需要 Python 3.11 以上，建議 Python 3.12。
+想自行從原始碼建置，需要 Python 3.11 以上（建議 3.12）。
 
 ## 安裝與執行
 
-正式版採單一 EXE：
+**一般使用者**：下載 `KeyManager.exe`，直接雙擊執行即可，不需要安裝步驟。
 
-```text
-KeyManager.exe
-```
-
-從原始碼執行：
+**想從原始碼跑**：
 
 ```powershell
 py -3.12 -m venv .venv
@@ -85,11 +82,40 @@ pip install -e .
 key-manager
 ```
 
-也可執行：
+或直接雙擊執行 `run_windows.bat`。
 
-```text
-run_windows.bat
-```
+## 使用方法
+
+### 建立 SSH Key
+1. 開啟「SSH 金鑰」頁面。
+2. 按「建立 SSH 金鑰」。
+3. 預設名稱是 `id_rsa`、演算法是 RSA 4096，兩者都可以改。
+4. 依需求填寫 Email / Comment 與 Passphrase。
+5. 建立完成後，可以直接複製或匯出 `.pub` Public Key。
+
+> Key Manager 不提供 Private Key 顯示或匯出功能，這是刻意的安全設計，不是漏做。
+
+### 把 SSH Key 加進 Agent
+1. 在 SSH Key 列表按「加入 Agent」。
+2. Agent 還沒啟動的話，Key Manager 會自動幫你啟動 Git for Windows 的 `ssh-agent.exe`。
+3. 有 Passphrase 的 Key，會跳出 Git for Windows 的 AskPass 視窗要你輸入。
+4. 重新開啟 Key Manager 時，如果先前啟動的 Agent 還活著，會自動接回去；Agent 已經關掉的話，舊資訊會自動作廢。
+
+### 建立 GPG Key
+1. 開啟「GPG 金鑰」頁面。
+2. 按「建立 GPG 金鑰」。
+3. 輸入 Name 與 Email。
+4. 預設演算法是 RSA 4096，也可以改成 ED25519。
+5. GnuPG 會跳出原生的 Pinentry 視窗讓你設定 Passphrase（Key Manager 完全看不到這組密碼）。
+
+### 啟用 Git Commit / Tag GPG Signing
+1. 到「Git 設定」頁面，填入 `user.name`、`user.email`。
+2. 選擇要用來簽章的 GPG Key（完整 Fingerprint）。
+3. 打開「Git GPG 簽章」開關即可——Commit 跟 Tag 會一起套用同一組設定。
+
+---
+
+以下是給想要自行建置或參與開發的人看的補充資訊。
 
 ## 建置 Windows EXE
 
@@ -99,7 +125,7 @@ run_windows.bat
 build_windows_exe.bat
 ```
 
-1.0.1 正式建置使用 **PyInstaller 單一 EXE**，並停用 UPX。完成後輸出：
+正式建置採用 **PyInstaller 單一 EXE**，並停用 UPX。完成後會輸出：
 
 ```text
 dist\KeyManager.exe
@@ -108,63 +134,20 @@ dist\KeyManager.exe.sha256
 
 SHA-256 檔可用來核對發布後的檔案完整性。
 
-## 使用方法
-
-### 建立 SSH Key
-
-1. 開啟「SSH 金鑰」。
-2. 按「建立 SSH 金鑰」。
-3. 預設名稱為 `id_rsa`，演算法為 RSA 4096。
-4. 可填寫 Email / Comment 與 Passphrase。
-5. 建立後可複製或匯出 `.pub` Public Key。
-
-Key Manager 不提供 Private Key 顯示或匯出功能。
-
-### 將 SSH Key 加入 Agent
-
-1. 在 SSH Key 列表按「加入 Agent」。
-2. 若 Agent 尚未啟動，Key Manager 會啟動 Git for Windows 的 `ssh-agent.exe`。
-3. 若 Private Key 有 Passphrase，由 Git for Windows AskPass GUI 要求輸入。
-4. Key Manager 會保存自己啟動的 Agent 連線資訊。重新開啟程式時會先驗證 Agent 是否仍存在，存活時會重新連線；Agent 已退出時舊資訊會自動失效。
-
-### 建立 GPG Key
-
-1. 開啟「GPG 金鑰」。
-2. 按「建立 GPG 金鑰」。
-3. 輸入 Name 與 Email。
-4. 預設演算法為 RSA 4096，也可改用 ED25519。
-5. GnuPG 會顯示原生 Pinentry 視窗設定 Passphrase。
-
-Key Manager 不會取得 GPG Passphrase。
-
-### 啟用 Git Commit / Tag GPG Signing
-
-在「Git 設定」填入 `user.name`、`user.email`，選擇完整 GPG Fingerprint 並啟用 Git GPG 簽章即可。
-
-## 安全設計
-
-- UI 不提供 SSH / GPG Private Key 內容顯示。
-- UI 不提供 Private Key 匯出。
-- SSH Passphrase 不放入外部命令參數。
-- SSH Key 加入 Agent 時，Passphrase 由 Git for Windows AskPass 處理。
-- GPG Passphrase 由 GnuPG / Pinentry 處理；Key Manager 不讀取、不保存、不轉送。
-- Windows 外部 subprocess 使用隱藏 Console 執行。
-- Agent 持久化只保存 `SSH_AUTH_SOCK` / `SSH_AGENT_PID`，不保存 Passphrase 或 Private Key。
-
 ## Windows Defender 與發布
 
-Key Manager 使用 PyInstaller **單一 EXE** 封裝。未簽章、低下載量或由打包器產生的 Windows 應用程式，有機會被 Microsoft Defender 的機器學習或啟發式偵測誤判。1.0.1 已停用 UPX，以減少額外壓縮特徵，但不能保證完全避免誤判。
+Key Manager 使用 PyInstaller **單一 EXE** 封裝。未簽章、低下載量或由打包器產生的 Windows 應用程式，有機會被 Microsoft Defender 的機器學習或啟發式偵測誤判；停用 UPX 是為了減少額外的壓縮特徵，但不保證完全避免誤判。
 
 若自行建置的 EXE 被偵測為 `Trojan:Win32/Wacatac.C!ml`：
 
 1. 不要直接關閉 Defender 或替整個下載資料夾加入排除。
-2. 確認原始碼與建置環境可信並核對 SHA-256。
+2. 確認原始碼與建置環境可信，並核對 SHA-256。
 3. 將檔案提交 Microsoft Security Intelligence 進行誤判分析。
 4. 對外正式發布時建議使用 Authenticode Code Signing 憑證簽署 EXE。
 
 ## Git for Windows 整合
 
-主要使用：
+Key Manager 主要呼叫這些固定路徑的執行檔：
 
 ```text
 C:\Program Files\Git\cmd\git.exe

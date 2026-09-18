@@ -99,18 +99,9 @@ def test_release_build_uses_single_exe_without_upx():
     assert "upx=False" in spec
     assert "exclude_binaries=True" not in spec
     assert "COLLECT(" not in spec
-    assert "Key Manager 1.0.1" in build
+    # The banner's version number moves with every release; that is covered by
+    # test_release_1_0.py's current-version check instead of being pinned here.
     assert "single EXE without UPX" in build
     assert "Compress-Archive" not in build
     assert "Get-FileHash" in build
     assert "dist\\KeyManager.exe" in build
-
-
-def test_release_metadata_is_1_0_1():
-    from key_manager import metadata
-
-    assert metadata.APP_VERSION == "1.0.1"
-    assert metadata.APP_VERSION_LABEL == "1.0.1"
-    assert 'version = "1.0.1"' in (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    version_info = (ROOT / "version_info.txt").read_text(encoding="utf-8")
-    assert "1.0.1" in version_info

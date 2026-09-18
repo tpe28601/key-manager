@@ -16,7 +16,7 @@
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 
   const mockData = {
-    app: { name: 'Key Manager', version: '1.0.1', version_label: '1.0.1', author: 'Mike Lin', system: 'Windows', home: 'C:\\Users\\Mike' },
+    app: { name: 'Key Manager', version: '1.0.2', version_label: '1.0.2', author: 'Mike Lin', system: 'Windows', home: 'C:\\Users\\Mike' },
     dashboard: { ok: true, ssh_count: 2, agent_status: '已載入 1 組 Key', gpg_count: 1, git_installed: true, git_name: 'Mike Lin', git_email: 'mike@example.com', signing_enabled: true, signing_key: '92FA301C58210000000000000000ABCD12345678' },
     ssh: { ok: true, agent_status: '已載入 1 組 Key', keys: [
       { name: 'id_rsa', algorithm: 'ssh-rsa', fingerprint: 'SHA256:sV8Y3sMZ5nJ0z8Q4qJX1uN2L7vO3xI4b', comment: 'mike@example.com', has_private_key: true, agent_loaded: true },

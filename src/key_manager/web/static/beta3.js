@@ -68,6 +68,12 @@
   function notify(message, type = 'success') {
     const stack = $('#toasts');
     if (!stack) return;
+    // Keep in sync with app.js's toastHost(): a showModal() dialog paints in
+    // the top layer above normal elements, so the toast stack must live
+    // inside it (if one is open) or it will render hidden behind the backdrop.
+    const dialogs = [...document.querySelectorAll('dialog[open]')];
+    const host = dialogs.length ? dialogs[dialogs.length - 1] : document.body;
+    if (stack.parentElement !== host) host.append(stack);
     const item = document.createElement('div');
     item.className = `toast ${type}`;
     item.append(icon(type === 'error' ? 'tabler:alert-circle' : 'tabler:check'));

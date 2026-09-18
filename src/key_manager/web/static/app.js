@@ -74,14 +74,25 @@
     $('#refresh-btn').disabled = on;
   }
 
+  // <dialog> opened with showModal() renders in the browser's top layer, above
+  // every normal element regardless of z-index. Re-parent the toast stack into
+  // the frontmost open dialog so toasts stay visible above its backdrop.
+  function toastHost() {
+    const dialogs = $$('dialog[open]');
+    return dialogs.length ? dialogs[dialogs.length - 1] : document.body;
+  }
+
   function toast(message, type = 'success', timeout = 3300) {
+    const stack = $('#toasts');
+    const host = toastHost();
+    if (stack.parentElement !== host) host.append(stack);
     const item = document.createElement('div');
     item.className = `toast ${type}`;
     item.append(icon(type === 'error' ? 'tabler:alert-circle' : 'tabler:check'));
     const text = document.createElement('div');
     text.textContent = message;
     item.append(text);
-    $('#toasts').append(item);
+    stack.append(item);
     window.setTimeout(() => item.remove(), timeout);
   }
 

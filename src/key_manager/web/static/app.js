@@ -16,7 +16,7 @@
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 
   const mockData = {
-    app: { name: 'Key Manager', version: '1.0.0', version_label: '1.0.0', author: 'Mike Lin', system: 'Windows', home: 'C:\\Users\\Mike' },
+    app: { name: 'Key Manager', version: '1.0.1', version_label: '1.0.1', author: 'Mike Lin', system: 'Windows', home: 'C:\\Users\\Mike' },
     dashboard: { ok: true, ssh_count: 2, agent_status: '已載入 1 組 Key', gpg_count: 1, git_installed: true, git_name: 'Mike Lin', git_email: 'mike@example.com', signing_enabled: true, signing_key: '92FA301C58210000000000000000ABCD12345678' },
     ssh: { ok: true, agent_status: '已載入 1 組 Key', keys: [
       { name: 'id_rsa', algorithm: 'ssh-rsa', fingerprint: 'SHA256:sV8Y3sMZ5nJ0z8Q4qJX1uN2L7vO3xI4b', comment: 'mike@example.com', has_private_key: true, agent_loaded: true },
@@ -336,7 +336,11 @@
     if (showResult(await api('stop_ssh_agent'))) await Promise.all([loadAgentManager(), loadSsh()]);
   }
   async function deleteSsh(name) {
-    if (!window.confirm(`確定要刪除 SSH Key「${name}」？\n\n這會刪除 Private Key 與 .pub，且無法復原。`)) return;
+    const key = state.sshKeys.find(item => item.name === name);
+    const warning = key?.agent_loaded
+      ? '\n\n⚠️ 此 Key 目前已載入 SSH Agent，刪除檔案不會自動從 Agent 移除，之後使用可能出現找不到檔案的錯誤。'
+      : '';
+    if (!window.confirm(`確定要刪除 SSH Key「${name}」？\n\n這會刪除 Private Key 與 .pub，且無法復原。${warning}`)) return;
     if (showResult(await api('delete_ssh_key', name))) await loadSsh();
   }
   async function copyGpg(fingerprint) { showResult(await api('copy_gpg_public_key', fingerprint)); }
@@ -345,7 +349,13 @@
     if (showResult(result) && result.path) toast(`已匯出至 ${result.path}`);
   }
   async function deleteGpg(fingerprint, label) {
-    if (!window.confirm(`確定要刪除 GPG Key「${label}」？\n\nSecret Key 與 Public Key 都會刪除，且無法復原。`)) return;
+    const cfg = await api('read_git_config');
+    const inUse = !!cfg.ok && cfg.config?.signing_key === fingerprint
+      && (!!cfg.config?.commit_gpgsign || !!cfg.config?.tag_gpgsign);
+    const warning = inUse
+      ? '\n\n⚠️ 此 Key 目前是 Git Commit / Tag 簽章使用的 Signing Key，刪除後簽章設定會失效，之後 commit/tag 會簽章失敗。'
+      : '';
+    if (!window.confirm(`確定要刪除 GPG Key「${label}」？\n\nSecret Key 與 Public Key 都會刪除，且無法復原。${warning}`)) return;
     if (showResult(await api('delete_gpg_key', fingerprint))) {
       state.selectedGpg = '';
       await loadGpg();
@@ -441,7 +451,10 @@
     let theme = 'light';
     try { theme = localStorage.getItem('key-manager-theme') || 'light'; } catch (_) {}
     setTheme(theme);
-    let fallbackTimer = window.setTimeout(loadMockData, 350);
+    // pywebview's WebView2 bridge can take a while to come up on a cold start;
+    // wait generously before assuming we're in a plain browser preview so the
+    // real app never has to show fabricated key data.
+    let fallbackTimer = window.setTimeout(loadMockData, 2500);
     window.addEventListener('pywebviewready', async () => {
       window.clearTimeout(fallbackTimer);
       await bootRealBridge();

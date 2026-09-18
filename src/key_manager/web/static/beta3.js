@@ -146,7 +146,13 @@
     if (!api?.get_theme) return;
     try {
       const result = await api.get_theme();
-      if (result?.ok) applyTheme(result.theme);
+      if (result?.ok) {
+        applyTheme(result.theme);
+        // settings.json is the source of truth; keep the localStorage cache
+        // (used for the pre-bridge first paint) from drifting so future
+        // launches don't flash the wrong theme before the bridge is ready.
+        try { localStorage.setItem('key-manager-theme', result.theme); } catch (_) {}
+      }
     } catch (_) {}
   }
 

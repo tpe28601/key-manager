@@ -11,12 +11,15 @@ def test_theme_persists_in_key_manager_settings(monkeypatch, tmp_path: Path):
 
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "LocalAppData"))
 
-    assert settings.get_theme() == "light"
+    assert settings.get_theme() == "system"
     settings.set_theme("dark")
     assert settings.get_theme() == "dark"
 
     settings.set_theme("light")
     assert settings.get_theme() == "light"
+
+    settings.set_theme("system")
+    assert settings.get_theme() == "system"
 
 
 def test_theme_rejects_unknown_value(monkeypatch, tmp_path: Path):
@@ -38,7 +41,7 @@ def test_web_api_exposes_persistent_theme(monkeypatch, tmp_path: Path):
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "LocalAppData"))
     api = KeyManagerApi(window_getter=lambda: None)
 
-    assert api.get_theme() == {"ok": True, "theme": "light"}
+    assert api.get_theme() == {"ok": True, "theme": "system"}
     assert api.set_theme("dark") == {"ok": True, "theme": "dark"}
     assert api.get_theme() == {"ok": True, "theme": "dark"}
 

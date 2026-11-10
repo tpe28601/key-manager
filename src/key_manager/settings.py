@@ -9,6 +9,21 @@ from typing import Any
 APP_SETTINGS_DIR = "KeyManager"
 SETTINGS_FILE = "settings.json"
 
+# Dev-Toolbox web server overrides this to %LOCALAPPDATA%\DevToolbox\key-manager
+# (TOOL-SPEC dataDir). Desktop mode leaves it None and keeps using KeyManager\.
+_settings_dir_override: Path | None = None
+
+
+def set_settings_dir(directory: str | Path | None) -> None:
+    global _settings_dir_override
+    _settings_dir_override = Path(directory) if directory else None
+
+
+def get_settings_dir() -> Path:
+    if _settings_dir_override is not None:
+        return _settings_dir_override
+    return _local_appdata_dir() / APP_SETTINGS_DIR
+
 
 def _home_dir() -> Path:
     return Path.home()
@@ -23,7 +38,7 @@ def _local_appdata_dir() -> Path:
 
 
 def settings_path() -> Path:
-    return _local_appdata_dir() / APP_SETTINGS_DIR / SETTINGS_FILE
+    return get_settings_dir() / SETTINGS_FILE
 
 
 def default_ssh_dir() -> Path:
@@ -78,18 +93,18 @@ def reset_ssh_dir() -> None:
     data.pop("ssh_dir", None)
     _save(data)
 
-VALID_THEMES = {"light", "dark"}
+VALID_THEMES = {"light", "dark", "system"}
 
 
 def get_theme() -> str:
     value = _load().get("theme")
-    return value if isinstance(value, str) and value in VALID_THEMES else "light"
+    return value if isinstance(value, str) and value in VALID_THEMES else "system"
 
 
 def set_theme(theme: str) -> None:
     value = str(theme).strip().lower()
     if value not in VALID_THEMES:
-        raise ValueError("Theme must be light or dark")
+        raise ValueError("Theme must be light, dark or system")
     data = _load()
     data["theme"] = value
     _save(data)

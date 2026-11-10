@@ -1,6 +1,6 @@
 # Key Manager
 
-**Key Manager 1.0.2** 是一套專為 Windows 打造的 SSH／GPG 金鑰管理工具，把散落在指令列裡的 `ssh-keygen`、`ssh-agent`、`gpg`、`git config` 操作，收進一個原生桌面視窗裡。不管是要生一把新的 SSH Key、把 Key 丟進 Agent、建立簽章用的 GPG Key，還是幫 Git commit 打開簽章，都可以在介面上點幾下完成，不用再背指令。
+**Key Manager 1.1.1** 是一套專為 Windows 打造的 SSH／GPG 金鑰管理工具，把散落在指令列裡的 `ssh-keygen`、`ssh-agent`、`gpg`、`git config` 操作，收進一個原生桌面視窗（pywebview）或本機瀏覽器頁面（Dev-Toolbox Web 模式）裡。不管是要生一把新的 SSH Key、把 Key 丟進 Agent、建立簽章用的 GPG Key，還是幫 Git commit 打開簽章，都可以在介面上點幾下完成，不用再背指令。
 
 它是 Git for Windows 內建工具（`ssh.exe`、`ssh-agent.exe`、`ssh-keygen.exe`、`gpg.exe`）的前台介面，本身不做任何加密運算，也**不會顯示或匯出 Private Key**——Passphrase 一律交給 Git for Windows AskPass（SSH）或 GnuPG Pinentry（GPG）的原生視窗處理。
 
@@ -193,6 +193,20 @@ key-manager/
 pip install -e ".[dev]"
 pytest -q
 ```
+
+## Dev-Toolbox Web 模式
+
+除了 pywebview 桌面版，本工具也能以純標準函式庫的 HTTP 服務執行，給 Dev-Toolbox Hub 呼叫（或自行開瀏覽器使用）。此模式**不需要安裝 pywebview**，只要 Python 3.11+：
+
+```powershell
+python web_server.py                # 預設 8730，被占用時自動往上找（最多 +20）
+python web_server.py --open-browser # 啟動後直接開瀏覽器
+```
+
+- 只綁定 `127.0.0.1`；停止按 Ctrl+C，或由 Hub 呼叫 `POST /api/shutdown`。
+- 介面與桌面版相同；「選擇資料夾」「匯出存檔」這類原生對話框在 Web 模式無法使用，會提示改用桌面版。
+- 若環境沒有 `cryptography` 套件，產生 SSH Key 會自動改用本機 `ssh-keygen`。
+- 設定檔存放在 `%LOCALAPPDATA%\DevToolbox\key-manager\settings.json`（首次啟動會從舊的 `%LOCALAPPDATA%\KeyManager\` 複製一份；桌面版仍使用原本位置）。
 
 ## License / Third-party notices
 

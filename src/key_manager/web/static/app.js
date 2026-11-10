@@ -122,6 +122,8 @@
     if (method === 'list_gpg_keys') return mockData.gpg;
     if (method === 'read_git_config') return mockData.git;
     if (method.startsWith('copy_')) return { ok: true, message: 'Preview：已模擬複製 Public Key' };
+    if (method === 'get_ssh_public_key_text') return { ok: true, filename: `${args[0]}.pub`, text: 'ssh-ed25519 AAAAPREVIEW preview@example.com\n' };
+    if (method === 'get_gpg_public_key_text') return { ok: true, filename: 'gpg-public-key.asc', text: '-----BEGIN PGP PUBLIC KEY BLOCK-----\nPREVIEW\n-----END PGP PUBLIC KEY BLOCK-----\n' };
     if (method.startsWith('export_')) return { ok: true, path: 'C:\\Users\\Mike\\Desktop\\public-key.pub' };
     if (method === 'list_ssh_agent') return mockData.agent;
     if (method === 'start_ssh_agent') { mockData.agent.available = true; mockData.agent.managed = true; mockData.agent.status = mockData.agent.identities.length ? `已載入 ${mockData.agent.identities.length} 組 Key` : '已啟動但未載入 Key'; return { ok: true, message: 'Preview：已啟動 Agent' }; }
@@ -284,7 +286,26 @@
   }
 
   async function copySsh(name) { showResult(await api('copy_ssh_public_key', name)); }
+  // Web 模式沒有存檔對話框：取得 Public Key 文字後交給瀏覽器下載
+  function downloadText(filename, text) {
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  async function exportByDownload(method, arg) {
+    const result = await api(method, arg);
+    if (!showResult(result)) return;
+    downloadText(result.filename, result.text);
+    toast(`已下載 ${result.filename}（存到瀏覽器的下載資料夾）`);
+  }
   async function exportSsh(name) {
+    if (window.KM_WEB_MODE) return exportByDownload('get_ssh_public_key_text', name);
     const result = await api('export_ssh_public_key', name);
     if (showResult(result) && result.path) toast(`已匯出至 ${result.path}`);
   }
@@ -356,6 +377,7 @@
   }
   async function copyGpg(fingerprint) { showResult(await api('copy_gpg_public_key', fingerprint)); }
   async function exportGpg(fingerprint) {
+    if (window.KM_WEB_MODE) return exportByDownload('get_gpg_public_key_text', fingerprint);
     const result = await api('export_gpg_public_key', fingerprint);
     if (showResult(result) && result.path) toast(`已匯出至 ${result.path}`);
   }
@@ -406,19 +428,30 @@
     if (showResult(result, 'GPG Key 建立完成')) { $('#gpg-dialog').close(); form.reset(); await loadGpg(); }
   }
 
-  function setTheme(theme) {
-    document.documentElement.dataset.theme = theme;
-    try { localStorage.setItem('key-manager-theme', theme); } catch (_) {}
-    const dark = theme === 'dark';
-    $('#theme-text').textContent = dark ? '淺色模式' : '深色模式';
-    $('#theme-btn .icon').dataset.icon = dark ? 'tabler:sun' : 'tabler:moon';
+  // 主題由 ui-kit 的 tb-theme.js 套用（light／dark／system）；這裡只負責按鈕與循環切換
+  const THEME_ORDER = ['light', 'dark', 'system'];
+  const THEME_LABEL = { light: '淺色', dark: '深色', system: '跟隨系統' };
+  const THEME_ICON = { light: 'tabler:sun', dark: 'tabler:moon', system: 'tabler:device-desktop' };
+  function currentThemeMode() {
+    return window.TbTheme ? window.TbTheme.get().mode : (document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light');
+  }
+  function paintThemeButton() {
+    const mode = currentThemeMode();
+    $('#theme-text').textContent = THEME_LABEL[mode] || mode;
+    $('#theme-btn .icon').dataset.icon = THEME_ICON[mode] || 'tabler:sun';
     window.IconifyLocal.renderIcons($('#theme-btn'));
+  }
+  function setTheme(mode) {
+    if (window.TbTheme) window.TbTheme.set(mode);
+    else document.documentElement.dataset.theme = mode === 'dark' ? 'dark' : 'light';
+    paintThemeButton();
   }
 
   function bindEvents() {
     $$('.nav-item').forEach(btn => btn.addEventListener('click', () => switchPage(btn.dataset.page)));
     $('#refresh-btn').addEventListener('click', refreshCurrent);
-    $('#theme-btn').addEventListener('click', () => setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
+    $('#theme-btn').addEventListener('click', () => setTheme(THEME_ORDER[(THEME_ORDER.indexOf(currentThemeMode()) + 1) % THEME_ORDER.length]));
+    document.addEventListener('tb-theme-change', paintThemeButton);
     $('#ssh-create-btn').addEventListener('click', () => $('#ssh-dialog').showModal());
     $('#agent-manage-btn').addEventListener('click', openAgentManager);
     $('#agent-cancel-x').addEventListener('click', () => $('#agent-dialog').close());
@@ -459,9 +492,7 @@
   function boot() {
     window.IconifyLocal.renderIcons();
     bindEvents();
-    let theme = 'light';
-    try { theme = localStorage.getItem('key-manager-theme') || 'light'; } catch (_) {}
-    setTheme(theme);
+    paintThemeButton();
     // pywebview's WebView2 bridge can take a while to come up on a cold start;
     // wait generously before assuming we're in a plain browser preview so the
     // real app never has to show fabricated key data.

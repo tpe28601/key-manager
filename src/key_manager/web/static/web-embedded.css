@@ -1,0 +1,3 @@
+/* Dev-Toolbox web mode (?embedded=1): Hub provides the window chrome. */
+html[data-embedded] .topbar { display: none !important; }
+html[data-embedded] .app-shell { --topbar-offset: 0px; }

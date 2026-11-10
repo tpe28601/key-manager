@@ -1,15 +1,19 @@
 <!doctype html>
-<html lang="zh-Hant" data-theme="light">
+<html lang="zh-Hant">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#f3f5f9">
   <title>Key Manager</title>
+  <link rel="stylesheet" href="ui-kit.css">
   <link rel="stylesheet" href="app.css">
   <link rel="stylesheet" href="beta3.css">
   <link rel="stylesheet" href="beta4.css">
+  <!-- 深淺色／強調色：網址 ?theme=&accent=（Hub 嵌入時帶入）> 記憶 > 跟隨系統 -->
+  <script src="tb-theme.js"></script>
 </head>
-<body>
+<body class="tb-app">
   <div class="app-shell">
     <aside class="sidebar">
       <div class="brand">
@@ -33,7 +37,7 @@
       <header class="topbar">
         <div class="topbar-spacer"></div>
         <button class="button ghost" id="refresh-btn"><span class="icon" data-icon="tabler:refresh"></span>重新整理</button>
-        <button class="button ghost" id="theme-btn"><span class="icon" data-icon="tabler:moon"></span><span id="theme-text">深色模式</span></button>
+        <button class="button ghost" id="theme-btn" title="切換主題：淺色 → 深色 → 跟隨系統"><span class="icon" data-icon="tabler:device-desktop"></span><span id="theme-text">跟隨系統</span></button>
       </header>
 
       <div class="content-scroll">
@@ -92,6 +96,26 @@
   <dialog id="gpg-dialog" class="modal"><form method="dialog" id="gpg-form"><div class="modal-head"><div><h2>建立 GPG 金鑰</h2><p>使用 Git Bash 內的 GPG</p></div><button class="icon-button" id="gpg-cancel-x" type="button" aria-label="關閉"><span class="icon" data-icon="tabler:x"></span></button></div><div class="modal-body"><label>Name<input name="name" required></label><label>Email<input name="email" type="email" required></label><label>演算法<select name="algorithm"><option value="rsa4096" selected>RSA 4096</option><option value="ed25519">ED25519</option></select></label><label>有效期限<select name="expire"><option value="1y">1 年</option><option value="2y" selected>2 年</option><option value="3y">3 年</option><option value="5y">5 年</option><option value="0">不過期</option></select></label><div class="notice"><span class="icon" data-icon="tabler:shield-lock"></span><span>密碼由 GnuPG 的 Pinentry 視窗設定。Key Manager 不會讀取、保存或傳送 GPG Passphrase。</span></div></div><div class="modal-actions"><button class="button" id="gpg-cancel" type="button">取消</button><button class="button primary" id="gpg-submit" type="submit">建立</button></div></form></dialog>
 
 
+  <dialog id="dir-dialog" class="modal dir-modal">
+    <div class="modal-head">
+      <div><h2>選擇 SSH Key 資料夾</h2><p>點資料夾進入，確認後套用目前所在的資料夾</p></div>
+      <button class="icon-button" id="dir-cancel-x" type="button" aria-label="關閉"><span class="icon" data-icon="tabler:x"></span></button>
+    </div>
+    <div class="modal-body dir-modal-body">
+      <div class="dir-pathbar">
+        <button class="icon-button" id="dir-up" type="button" aria-label="上一層" title="上一層"><span class="icon" data-icon="tabler:arrow-up"></span></button>
+        <input id="dir-path" type="text" spellcheck="false" aria-label="目前路徑">
+        <button class="button" id="dir-go" type="button">前往</button>
+      </div>
+      <div class="dir-roots" id="dir-roots"></div>
+      <ul class="dir-list" id="dir-list"></ul>
+      <div class="empty-state" id="dir-empty" hidden>這個資料夾沒有子資料夾</div>
+    </div>
+    <div class="modal-actions">
+      <button class="button" id="dir-cancel" type="button">取消</button>
+      <button class="button primary" id="dir-ok" type="button">使用這個資料夾</button>
+    </div>
+  </dialog>
   <dialog id="agent-dialog" class="modal agent-modal">
     <div class="modal-head">
       <div><h2>SSH Agent 管理</h2><p id="agent-manager-status">讀取中…</p></div>
@@ -113,6 +137,7 @@
   </dialog>
 
   <div class="toast-stack" id="toasts"></div>
+  <script src="tb-icons.js"></script>
   <script src="icons.js"></script>
   <script src="app.js"></script>
   <script src="beta3.js"></script>

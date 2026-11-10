@@ -9,15 +9,15 @@ WEB = ROOT / "src" / "key_manager" / "web" / "static"
 def test_release_metadata_is_current_1_0_series():
     from key_manager import metadata
 
-    assert metadata.APP_VERSION == "1.0.2"
-    assert metadata.APP_VERSION_LABEL == "1.0.2"
+    assert metadata.APP_VERSION == "1.1.1"
+    assert metadata.APP_VERSION_LABEL == "1.1.1"
 
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    assert 'version = "1.0.2"' in pyproject
+    assert 'version = "1.1.1"' in pyproject
 
     version_info = (ROOT / "version_info.txt").read_text(encoding="utf-8")
     assert "Beta" not in version_info
-    assert "1.0.2" in version_info
+    assert "1.1.1" in version_info
 
 
 def test_ssh_create_defaults_to_rsa4096_and_id_rsa(monkeypatch, tmp_path):

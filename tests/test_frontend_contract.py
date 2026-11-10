@@ -16,19 +16,23 @@ def test_frontend_has_four_primary_pages_and_no_emoji_icons():
     assert not emoji_ranges.search(html)
 
 
-def test_icons_are_vendored_iconify_tabler_svg():
+def test_icons_use_shared_ui_kit_lucide_svg():
     icons = (WEB / "icons.js").read_text(encoding="utf-8")
-    assert "@iconify-json/tabler" in icons
-    assert "tabler:layout-dashboard" in icons
-    assert "tabler:key" in icons
-    assert "tabler:shield-lock" in icons
-    assert "tabler:brand-git" in icons
-    assert 'viewBox="0 0 24 24"' in icons
+    kit = (WEB / "tb-icons.js").read_text(encoding="utf-8")
+    html = (WEB / "index.html").read_text(encoding="utf-8")
+    # 舊的 data-icon 名稱保留，實際由 ui-kit 的 Lucide（tb-icons.js）畫出
+    for name in ("tabler:layout-dashboard", "tabler:key", "tabler:shield-lock", "tabler:brand-git"):
+        assert name in icons
+    assert "TbIcons" in icons
+    assert 'viewBox="0 0 24 24"' in kit
+    assert html.index('src="tb-icons.js"') < html.index('src="icons.js"')
 
 
 def test_css_has_real_dark_theme_clear_selection_and_large_scrollbars():
     css = (WEB / "app.css").read_text(encoding="utf-8")
-    assert '[data-theme="dark"]' in css
+    kit = (WEB / "ui-kit.css").read_text(encoding="utf-8")
+    assert '[data-theme="dark"]' in kit  # 深色 token 由 ui-kit 提供，app.css 只用別名
+    assert "var(--tb-" in css
     assert "scrollbar-width" in css
     assert "::-webkit-scrollbar" in css
     assert "14px" in css

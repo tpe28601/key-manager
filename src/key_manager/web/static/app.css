@@ -1,57 +1,31 @@
+/* Key Manager — 建立在 ui-kit 3.0 token 上（深淺色、強調色由 tb-theme.js 控制）。
+   下列短名稱只是 --tb-* 的別名，沿用既有規則。 */
 :root {
-  color-scheme: light;
-  --bg: #f4f6f9;
-  --surface: #ffffff;
-  --surface-2: #f8f9fb;
-  --surface-hover: #f0f2f6;
-  --text: #171a21;
-  --muted: #6f7785;
-  --border: #dfe3ea;
-  --border-strong: #cbd1db;
-  --accent: #7257e8;
-  --accent-strong: #6044dc;
-  --accent-soft: #eeeaff;
-  --accent-text: #4a34b6;
-  --selection: #7257e8;
-  --selection-text: #ffffff;
-  --danger: #c53b4d;
-  --danger-soft: #fff0f2;
-  --success: #287a52;
-  --success-soft: #edf8f2;
-  --warning: #8d6410;
-  --warning-soft: #fff7df;
-  --shadow: 0 8px 30px rgba(22, 28, 45, 0.06);
+  --bg: var(--tb-bg);
+  --surface: var(--tb-surface);
+  --surface-2: var(--tb-surface-2);
+  --surface-hover: var(--tb-surface-2);
+  --text: var(--tb-text);
+  --muted: var(--tb-muted);
+  --border: var(--tb-border);
+  --border-strong: var(--tb-border-strong);
+  --accent: var(--tb-accent);
+  --accent-strong: color-mix(in srgb, var(--tb-accent) 86%, var(--tb-text));
+  --accent-soft: var(--tb-accent-soft);
+  --accent-text: var(--tb-accent);
+  --selection: var(--tb-accent);
+  --selection-text: var(--tb-accent-fg);
+  --danger: var(--tb-danger);
+  --danger-soft: var(--tb-danger-soft);
+  --success: var(--tb-ok);
+  --success-soft: var(--tb-ok-soft);
+  --warning: var(--tb-warn);
+  --warning-soft: var(--tb-warn-soft);
+  --shadow: var(--tb-shadow-sm);
   --radius: 14px;
   --radius-sm: 10px;
-  --scrollbar: #b8bfca;
-  --scrollbar-hover: #9099a8;
-}
-
-html[data-theme="dark"] {
-  color-scheme: dark;
-  --bg: #15171c;
-  --surface: #1d2026;
-  --surface-2: #23262d;
-  --surface-hover: #2a2e36;
-  --text: #f2f4f7;
-  --muted: #a0a8b5;
-  --border: #333842;
-  --border-strong: #474d59;
-  --accent: #a897ff;
-  --accent-strong: #b8a9ff;
-  --accent-soft: #302a4a;
-  --accent-text: #d7d0ff;
-  --selection: #7257e8;
-  --selection-text: #ffffff;
-  --danger: #ff8290;
-  --danger-soft: #3c2429;
-  --success: #72d3a4;
-  --success-soft: #1f352a;
-  --warning: #f0c663;
-  --warning-soft: #3a321f;
-  --shadow: 0 10px 34px rgba(0, 0, 0, 0.2);
-  --scrollbar: #555d69;
-  --scrollbar-hover: #6e7785;
+  --scrollbar: var(--tb-scroll);
+  --scrollbar-hover: var(--tb-muted);
 }
 
 * { box-sizing: border-box; }
@@ -60,7 +34,7 @@ body {
   overflow: hidden;
   background: var(--bg);
   color: var(--text);
-  font-family: "Segoe UI Variable", "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-family: var(--tb-font);
   font-size: 14px;
   -webkit-font-smoothing: antialiased;
   text-rendering: geometricPrecision;
@@ -263,3 +237,103 @@ input[readonly] { color: var(--muted); }
   .dashboard-grid { grid-template-columns: 1fr; }
   .form-grid { grid-template-columns: 1fr; }
 }
+
+/* ======================================================================
+   ui-kit 3.0 互動：滑過有框＋淡色光暈、圖標小動畫（與 Hub、其他工具一致）
+   ====================================================================== */
+.button { transition: background var(--tb-transition), border-color var(--tb-transition), box-shadow var(--tb-transition), transform var(--tb-transition); }
+.button:not(:disabled):hover { border-color: var(--tb-accent); box-shadow: 0 0 0 3px var(--tb-accent-soft); }
+.button.primary { color: var(--tb-accent-fg); }
+.button.primary:not(:disabled):hover { box-shadow: 0 0 0 3px var(--tb-accent-ring); }
+.button.ghost:not(:disabled):hover { background: var(--tb-surface); border-color: var(--tb-accent); }
+.icon-button { border: 1px solid transparent; transition: background var(--tb-transition), border-color var(--tb-transition); }
+.icon-button:hover { border-color: var(--tb-border-strong); }
+.nav-item { border: 1px solid transparent; }
+.nav-item:hover { border-color: var(--tb-border); }
+.status-card, .form-panel, .table-wrap { transition: border-color var(--tb-transition), box-shadow var(--tb-transition); }
+.status-card:hover, .form-panel:hover { border-color: color-mix(in srgb, var(--tb-accent) 40%, var(--tb-border)); box-shadow: var(--tb-shadow); }
+.key-row:hover { box-shadow: inset 3px 0 0 var(--tb-accent); }
+input:focus-visible, select:focus-visible { box-shadow: var(--tb-focus); }
+.button:not(:disabled):hover .icon > svg, .nav-item:hover .icon > svg, .icon-button:hover .icon > svg { animation: tb-popicon .35s ease; }
+#refresh-btn:hover .icon > svg { animation: tb-spin .7s ease; }
+#theme-btn:hover .icon > svg { animation: tb-wiggle .5s ease; }
+@media (prefers-reduced-motion: reduce) { .icon > svg { animation: none !important; } }
+
+/* ======================================================================
+   上方分頁版面（與 Git Ref Manager、Opencode Cfg Manager 一致）
+   側欄改成頂部白底橫列：品牌＋分頁在左，重新整理／主題鈕在右，內容在下方捲動。
+   HTML 結構不變（.sidebar 仍是導覽、.topbar 仍是工具鈕），只改排版。
+   ====================================================================== */
+.app-shell, .app-shell { grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto minmax(0, 1fr); gap: 0; padding: 0; }
+.main-area { display: contents; }
+.sidebar {
+  grid-row: 1; grid-column: 1; flex-direction: row; align-items: center; gap: 14px; min-width: 0;
+  padding: 8px 8px 8px 20px; border: 0; border-bottom: 1px solid var(--tb-border); border-radius: 0; box-shadow: none;
+  background: var(--tb-surface);
+}
+.topbar {
+  grid-row: 1; grid-column: 2; min-height: 0; padding: 8px 16px 8px 8px; gap: 6px;
+  background: var(--tb-surface); border-bottom: 1px solid var(--tb-border);
+}
+.topbar-spacer { display: none; }
+.content-scroll { grid-row: 2; grid-column: 1 / -1; padding: 14px 20px 28px; }
+.content-scroll > .page { max-width: 1180px; margin: 0 auto; }
+.brand { padding: 0; gap: 10px; flex: none; }
+.brand-icon { width: 30px; height: 30px; padding: 6px; border-radius: var(--tb-radius); background: var(--tb-accent-soft); }
+.brand-copy { flex-direction: row; align-items: baseline; gap: 6px; }
+.brand-copy strong { font-size: var(--tb-fs-lg); font-weight: 650; white-space: nowrap; }
+.brand-copy span { font-size: var(--tb-fs-xs); white-space: nowrap; }
+.nav-list { display: flex; gap: 4px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.nav-list::-webkit-scrollbar { display: none; }
+.nav-item {
+  flex: none; min-height: 34px; padding: 0 12px; gap: 6px; border-radius: var(--tb-radius);
+  font-weight: 500; color: var(--tb-muted); border: 1px solid transparent;
+}
+.nav-item:hover { background: var(--tb-surface-2); color: var(--tb-text); border-color: var(--tb-border); }
+.nav-item.active { background: var(--tb-accent-soft); color: var(--tb-accent); border-color: transparent; font-weight: 600; }
+.nav-item .icon { width: 16px; height: 16px; }
+/* 版本／作者縮成分頁列右側的小字；環境路徑太長不顯示 */
+.sidebar-footer { margin: 0 0 0 auto; padding: 0 4px; border: 0; display: flex; gap: 8px; align-items: center; white-space: nowrap; font-size: var(--tb-fs-xs); }
+.sidebar-footer > div { margin: 0; }
+.sidebar-footer .environment { display: none; }
+.topbar .button { min-height: 34px; }
+
+/* Hub 嵌入：隱藏品牌與版本小字，分頁列保留 */
+html[data-embedded] .brand, html[data-embedded] .sidebar-footer { display: none; }
+html[data-embedded] .sidebar { grid-column: 1 / -1; }
+
+@media (max-width: 900px) {
+  .app-shell { grid-template-columns: minmax(0, 1fr) auto; }
+  .sidebar-footer { display: none; }
+}
+@media (max-width: 760px) {
+  .brand-copy span { display: none; }
+  #theme-text { display: none; }
+  .content-scroll { padding: 12px 12px 24px; }
+  .page-heading.split { flex-direction: column; align-items: flex-start; }
+}
+@media (max-width: 560px) {
+  .app-shell { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr); }
+  .sidebar { grid-row: 2; grid-column: 1; padding: 6px 10px; }
+  .topbar { grid-row: 1; grid-column: 1; justify-content: flex-end; padding: 6px 10px; border-bottom: 0; }
+  .content-scroll { grid-row: 3; }
+  .brand { display: none; }
+  .nav-item > span:not(.icon) { display: none; }
+  .nav-item.active > span:not(.icon) { display: inline; }
+  .topbar .button { padding: 0 10px; }
+}
+
+/* Web 模式資料夾選擇器 */
+.dir-modal { width: min(600px, calc(100vw - 32px)); }
+.dir-modal-body { gap: 10px; }
+.dir-pathbar { display: flex; gap: 8px; align-items: center; }
+.dir-pathbar input { flex: 1; min-width: 0; font-family: var(--tb-font-mono, ui-monospace, monospace); font-size: 12.5px; }
+.dir-roots { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip-button { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); color: var(--text); font: inherit; font-size: 12.5px; cursor: pointer; }
+.chip-button:hover { border-color: var(--tb-accent, var(--border)); }
+.chip-button .icon svg { width: 14px; height: 14px; }
+.dir-list { list-style: none; margin: 0; padding: 4px; height: min(320px, 45vh); overflow: auto; border: 1px solid var(--border); border-radius: 10px; }
+.dir-item { display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 10px; border: 0; border-radius: 8px; background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.dir-item:hover, .dir-item:focus-visible { background: var(--tb-surface-hover, rgba(127,127,127,.12)); }
+.dir-item .icon { color: var(--muted); flex: none; }
+.dir-item .icon svg { width: 16px; height: 16px; }

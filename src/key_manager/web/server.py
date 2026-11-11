@@ -42,6 +42,7 @@ STATIC_FILES = {
     "/app.css": ("app.css", "text/css; charset=utf-8"),
     "/beta3.css": ("beta3.css", "text/css; charset=utf-8"),
     "/beta4.css": ("beta4.css", "text/css; charset=utf-8"),
+    "/beta5.css": ("beta5.css", "text/css; charset=utf-8"),
     "/icons.js": ("icons.js", "application/javascript; charset=utf-8"),
     "/app.js": ("app.js", "application/javascript; charset=utf-8"),
     "/beta3.js": ("beta3.js", "application/javascript; charset=utf-8"),

@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="app.css">
   <link rel="stylesheet" href="beta3.css">
   <link rel="stylesheet" href="beta4.css">
+  <link rel="stylesheet" href="beta5.css">
   <!-- 深淺色／強調色：網址 ?theme=&accent=（Hub 嵌入時帶入）> 記憶 > 跟隨系統 -->
   <script src="tb-theme.js"></script>
 </head>
@@ -48,6 +49,7 @@
             <article class="status-card"><div class="card-label">GPG</div><div class="card-value" id="dash-gpg">讀取中…</div></article>
             <article class="status-card"><div class="card-label">Git Identity</div><div class="card-value" id="dash-git">讀取中…</div></article>
             <article class="status-card"><div class="card-label">Git GPG Signing</div><div class="card-value" id="dash-signing">讀取中…</div></article>
+            <article class="status-card clickable" id="dash-profiles-card" data-action="open-git" role="button" tabindex="0" aria-label="前往資料夾設定"><div class="card-label">資料夾設定</div><div class="card-value" id="dash-profiles">讀取中…</div></article>
           </div>
           <div class="action-row">
             <button class="button primary" data-action="open-ssh-create"><span class="icon" data-icon="tabler:key"></span>建立 SSH 金鑰</button>
@@ -59,13 +61,13 @@
         <section class="page" id="page-ssh">
           <div class="page-heading split"><div><h1>SSH 金鑰</h1><p id="ssh-status">管理本機 Public Key 與 SSH Agent</p></div><div class="page-heading-actions"><button class="button" id="agent-manage-btn"><span class="icon" data-icon="tabler:key"></span>管理 Agent</button><button class="button primary" id="ssh-create-btn"><span class="icon" data-icon="tabler:plus"></span>建立 SSH 金鑰</button></div></div>
           <div class="notice"><span class="icon" data-icon="tabler:info-circle"></span><span>SSH Agent 是暫存已解鎖私鑰的可選功能；未啟動不影響 Public Key 複製或匯出。</span></div>
-          <div class="table-wrap"><table><thead><tr><th>名稱</th><th>類型</th><th>Fingerprint</th><th>Comment</th><th class="right">操作</th></tr></thead><tbody id="ssh-body"></tbody></table><div class="empty-state" id="ssh-empty">尚未找到 SSH Public Key</div></div>
+          <div class="table-wrap"><table><thead><tr><th>名稱</th><th>類型</th><th>Fingerprint</th><th>Comment</th><th>使用位置</th><th class="right">操作</th></tr></thead><tbody id="ssh-body"></tbody></table><div class="empty-state" id="ssh-empty">尚未找到 SSH Public Key</div></div>
         </section>
 
         <section class="page" id="page-gpg">
           <div class="page-heading split"><div><h1>GPG 金鑰</h1><p id="gpg-status">Key 列表由 Git Bash 中的 gpg 提供</p></div><button class="button primary" id="gpg-create-btn"><span class="icon" data-icon="tabler:plus"></span>建立 GPG 金鑰</button></div>
           <div class="notice"><span class="icon" data-icon="tabler:terminal-2"></span><span>Backend：C:\Program Files\Git\bin\bash.exe -lc "gpg …"，與你在 Git Bash 手動執行的環境一致。</span></div>
-          <div class="table-wrap"><table><thead><tr><th>使用者</th><th>演算法</th><th>Fingerprint</th><th>到期日</th><th class="right">操作</th></tr></thead><tbody id="gpg-body"></tbody></table><div class="empty-state" id="gpg-empty">尚未找到 GPG Secret Key</div></div>
+          <div class="table-wrap"><table><thead><tr><th>使用者</th><th>演算法</th><th>Fingerprint</th><th>到期日</th><th>使用位置</th><th class="right">操作</th></tr></thead><tbody id="gpg-body"></tbody></table><div class="empty-state" id="gpg-empty">尚未找到 GPG Secret Key</div></div>
         </section>
 
         <section class="page" id="page-git">
@@ -86,6 +88,18 @@
             <label class="switch-row"><input type="checkbox" id="git-signing-enabled"><span class="switch"></span><span>啟用 Git GPG 簽章（Commit + Tag）</span></label>
             <div class="action-row"><button class="button" id="git-save-signing"><span class="icon" data-icon="tabler:signature"></span>套用 Signing 設定</button></div>
           </div>
+          <div class="form-panel" id="git-profiles-panel">
+            <h2>資料夾設定（Profiles）</h2>
+            <p class="panel-note">用全域 <code>includeIf</code> 依資料夾切換 Git 身份與簽章；Key Manager 只增刪自己管理的 includeIf 行，你的註解與其他設定都會保留。</p>
+            <div class="profile-toolbar">
+              <button class="button primary" id="profile-add-btn"><span class="icon" data-icon="tabler:plus"></span>新增資料夾設定</button>
+              <button class="button" id="profile-check-btn"><span class="icon" data-icon="tabler:search"></span>檢查實際生效值</button>
+              <button class="button ghost" id="profile-backup-btn"><span class="icon" data-icon="tabler:folder-open"></span>開啟備份資料夾</button>
+            </div>
+            <div class="profile-list" id="profile-list"></div>
+            <div class="empty-state visible" id="profile-empty">尚未建立資料夾設定；按「新增資料夾設定」開始</div>
+            <div class="profile-global-path" id="profile-global-path"></div>
+          </div>
         </section>
       </div>
     </main>
@@ -98,7 +112,7 @@
 
   <dialog id="dir-dialog" class="modal dir-modal">
     <div class="modal-head">
-      <div><h2>選擇 SSH Key 資料夾</h2><p>點資料夾進入，確認後套用目前所在的資料夾</p></div>
+      <div><h2 id="dir-title">選擇 SSH Key 資料夾</h2><p id="dir-subtitle">點資料夾進入，確認後套用目前所在的資料夾</p></div>
       <button class="icon-button" id="dir-cancel-x" type="button" aria-label="關閉"><span class="icon" data-icon="tabler:x"></span></button>
     </div>
     <div class="modal-body dir-modal-body">
@@ -134,6 +148,72 @@
       <button class="button" id="agent-stop" type="button"><span class="icon" data-icon="tabler:x"></span>停止 Agent</button>
       <button class="button" id="agent-close" type="button">關閉</button>
     </div>
+  </dialog>
+
+  <dialog id="profile-dialog" class="modal profile-modal">
+    <form method="dialog" id="profile-form">
+      <div class="modal-head">
+        <div><h2 id="profile-dialog-title">新增資料夾設定</h2><p>設定寫入專屬 Profile 檔，並用 includeIf 套用到下列資料夾</p></div>
+        <button class="icon-button" id="profile-cancel-x" type="button" aria-label="關閉"><span class="icon" data-icon="tabler:x"></span></button>
+      </div>
+      <div class="modal-body profile-modal-body">
+        <div class="notice" id="pf-note-banner" hidden><span class="icon" data-icon="tabler:info-circle"></span><span id="pf-note-banner-text"></span></div>
+        <div class="form-grid">
+          <label>名稱<input id="pf-name" autocomplete="off" required></label>
+          <label>備註<input id="pf-note" autocomplete="off"></label>
+        </div>
+        <div class="pf-folders-head"><strong>資料夾</strong><span class="muted">套用範圍（含子資料夾的 repo）</span><button class="button small" id="pf-add-folder" type="button"><span class="icon" data-icon="tabler:plus"></span>新增資料夾</button></div>
+        <ul class="pf-folders" id="pf-folders"></ul>
+        <div class="pf-fields-head"><strong>設定值</strong><span class="muted">勾「沿用全域」的欄位不寫入，繼續使用全域值</span></div>
+        <div class="form-grid">
+          <div class="pf-field">
+            <label>user.name<input id="pf-user-name" autocomplete="off" disabled></label>
+            <label class="pf-inherit"><input type="checkbox" id="pf-inherit-name" checked><span>沿用全域</span></label>
+          </div>
+          <div class="pf-field">
+            <label>user.email<input id="pf-user-email" type="email" autocomplete="off" disabled></label>
+            <label class="pf-inherit"><input type="checkbox" id="pf-inherit-email" checked><span>沿用全域</span></label>
+          </div>
+          <div class="pf-field">
+            <label>Signing Key（GPG Fingerprint）<select id="pf-signing-key"></select></label>
+            <input id="pf-signing-custom" type="text" placeholder="貼上完整 40 字元 Fingerprint" autocomplete="off" hidden>
+          </div>
+          <div class="pf-field">
+            <label>commit.gpgsign<select id="pf-commit-gpgsign"><option value="" selected>沿用全域</option><option value="true">true（commit 自動簽章）</option><option value="false">false</option></select></label>
+          </div>
+          <div class="pf-field">
+            <label>tag.gpgSign<select id="pf-tag-gpgsign"><option value="" selected>沿用全域</option><option value="true">true（tag 自動簽章）</option><option value="false">false</option></select></label>
+          </div>
+          <div class="pf-field">
+            <label>SSH Key（core.sshCommand）<select id="pf-ssh-key"></select></label>
+            <input id="pf-ssh-custom" type="text" placeholder='ssh -i "C:/keys/id_work" -o IdentitiesOnly=yes' autocomplete="off" hidden>
+          </div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="button" id="profile-cancel" type="button">取消</button>
+        <button class="button primary" id="profile-submit" type="submit">儲存</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="profile-check-dialog" class="modal">
+    <div class="modal-head">
+      <div><h2>檢查實際生效值</h2><p>在指定資料夾執行 git config，列出真正生效的值與來源檔案</p></div>
+      <button class="icon-button" id="check-cancel-x" type="button" aria-label="關閉"><span class="icon" data-icon="tabler:x"></span></button>
+    </div>
+    <div class="modal-body">
+      <div class="dir-pathbar">
+        <input id="check-path" type="text" spellcheck="false" placeholder="資料夾路徑，例如 D:/Work/ClientA" aria-label="資料夾路徑">
+        <button class="button" id="check-browse" type="button"><span class="icon" data-icon="tabler:folder-open"></span>瀏覽</button>
+        <button class="button primary" id="check-run" type="button"><span class="icon" data-icon="tabler:search"></span>檢查</button>
+      </div>
+      <div class="notice" id="check-note" hidden><span class="icon" data-icon="tabler:info-circle"></span><span id="check-note-text"></span></div>
+      <div class="table-wrap" id="check-result" hidden>
+        <table><thead><tr><th>設定</th><th>生效值</th><th>層級</th><th>來源檔案</th></tr></thead><tbody id="check-body"></tbody></table>
+      </div>
+    </div>
+    <div class="modal-actions"><button class="button" id="check-close" type="button">關閉</button></div>
   </dialog>
 
   <div class="toast-stack" id="toasts"></div>

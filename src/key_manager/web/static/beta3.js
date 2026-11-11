@@ -121,6 +121,11 @@
   // ---- Web 模式：瀏覽器內的資料夾選擇器（桌面版用 pywebview 原生對話框） ----
   let dirApi = null;
   let dirCurrent = '';
+  // Optional callback mode (1.2): when dirOnPick is set, #dir-ok returns the
+  // picked path to the caller instead of running the SSH-directory flow.
+  let dirOnPick = null;
+  const DIR_DEFAULT_TITLE = '選擇 SSH Key 資料夾';
+  const DIR_DEFAULT_SUBTITLE = '點資料夾進入，確認後套用目前所在的資料夾';
 
   function iconSpan(name) {
     const span = document.createElement('span');
@@ -170,8 +175,13 @@
     list.scrollTop = 0;
   }
 
-  async function openDirBrowser(api) {
+  async function openDirBrowser(api, options = {}) {
     dirApi = api;
+    dirOnPick = typeof options.onPick === 'function' ? options.onPick : null;
+    const title = $('#dir-title');
+    const subtitle = $('#dir-subtitle');
+    if (title) title.textContent = options.title || DIR_DEFAULT_TITLE;
+    if (subtitle) subtitle.textContent = options.subtitle || DIR_DEFAULT_SUBTITLE;
     const dialog = $('#dir-dialog');
     if (!dialog) return notify('找不到資料夾選擇視窗', 'error');
     if (!dialog.dataset.bound) {
@@ -186,8 +196,15 @@
       });
       $('#dir-ok').addEventListener('click', async () => {
         if (!dirCurrent) return;
+        const picked = dirCurrent;
+        if (dirOnPick) {
+          const callback = dirOnPick;
+          dialog.close();
+          try { await callback(picked); } catch (error) { notify(error?.message || String(error), 'error'); }
+          return;
+        }
         try {
-          const result = await dirApi.set_ssh_directory(dirCurrent);
+          const result = await dirApi.set_ssh_directory(picked);
           if (!result?.ok) return notify(result?.error || '設定資料夾失敗', 'error');
           dialog.close();
           $('#ssh-local-path').value = result.ssh_dir || '';
@@ -200,7 +217,7 @@
     }
     dialog.showModal();
     try {
-      await loadDir($('#ssh-local-path').value || '');
+      await loadDir(options.startPath || $('#ssh-local-path').value || '');
     } catch (error) {
       notify(error?.message || String(error), 'error');
     }
@@ -257,6 +274,8 @@
       notify(error?.message || String(error), 'error');
     }
   }
+
+  window.KmDirBrowser = { open: openDirBrowser };
 
   document.addEventListener('DOMContentLoaded', () => {
     installSshPathControls();

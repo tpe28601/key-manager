@@ -4,7 +4,10 @@ from pathlib import Path
 from typing import Any
 
 from key_manager.settings import get_ssh_dir, get_theme, reset_ssh_dir, set_ssh_dir, set_theme
+from key_manager.git import profiles
 from key_manager.gpg.export import armor_public_key
+from key_manager.ssh.discovery import discover_ssh_keys
+from key_manager.usage import collect_key_usage
 from .api import KeyManagerApi as BaseKeyManagerApi
 
 
@@ -21,6 +24,15 @@ def _folder_dialog_type(webview_module: Any) -> Any:
     if dialog is not None and hasattr(dialog, "FOLDER"):
         return dialog.FOLDER
     return webview_module.FOLDER_DIALOG
+
+
+def _blank_to_none(value: Any) -> str | None:
+    text = str(value).strip() if value is not None and not isinstance(value, bool) else value
+    if isinstance(text, str) and not text:
+        return None
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    return text
 
 
 class KeyManagerApi(BaseKeyManagerApi):
@@ -124,6 +136,125 @@ class KeyManagerApi(BaseKeyManagerApi):
             return _ok(filename="gpg-public-key.asc", text=text)
         except Exception as exc:
             return _error(exc)
+
+    # ---- 資料夾 Git 設定（Profile，SPEC-1.2） ----
+
+    def list_git_profiles(self) -> dict[str, Any]:
+        try:
+            return _ok(profiles=profiles.list_profiles(), global_path=str(profiles.global_config_path()))
+        except Exception as exc:
+            return _error(exc, profiles=[])
+
+    def save_git_profile(self, profile: dict[str, Any]) -> dict[str, Any]:
+        try:
+            payload = dict(profile or {})
+            payload["fields"] = self._profile_fields(payload.get("fields") or {})
+            saved = profiles.save_profile(payload)
+            return _ok(profile=saved, message=f"資料夾設定「{saved['name']}」已儲存")
+        except Exception as exc:
+            return _error(exc)
+
+    def delete_git_profile(self, id: str) -> dict[str, Any]:
+        try:
+            removed = profiles.delete_profile(str(id))
+            return _ok(message=f"已移除資料夾設定（{len(removed)} 個資料夾）", removed=removed)
+        except Exception as exc:
+            return _error(exc)
+
+    def check_effective_git_config(self, folder: str) -> dict[str, Any]:
+        try:
+            result = profiles.check_effective_config(str(folder))
+            return _ok(**result)
+        except Exception as exc:
+            return _error(exc)
+
+    def fix_profile_order(self, id: str) -> dict[str, Any]:
+        try:
+            fixed = profiles.fix_profile_order(str(id))
+            return _ok(message=f"已將 {len(fixed)} 個資料夾的 includeIf 移到全域檔最後", fixed=fixed)
+        except Exception as exc:
+            return _error(exc)
+
+    def get_key_usage(self) -> dict[str, Any]:
+        try:
+            usage = collect_key_usage()
+            return _ok(**usage)
+        except Exception as exc:
+            return _error(exc, ssh={}, gpg={}, notes=[])
+
+    def open_backup_folder(self) -> dict[str, Any]:
+        try:
+            import os
+
+            directory = profiles.backups_dir()
+            directory.mkdir(parents=True, exist_ok=True)
+            if os.name == "nt" and self._window_getter() is not None:
+                os.startfile(str(directory))  # type: ignore[attr-defined]
+            return _ok(path=str(directory))
+        except Exception as exc:
+            return _error(exc)
+
+    def select_folder(self, path: str = "") -> dict[str, Any]:
+        """Desktop-mode folder picker (web mode uses browse_directories)."""
+        try:
+            window = self._window_getter()
+            if window is None:
+                raise RuntimeError("視窗尚未初始化")
+            try:
+                import webview
+            except ImportError as exc:
+                raise RuntimeError("pywebview 尚未安裝") from exc
+            start = str(path).strip() or str(self._ssh_dir_or_home())
+            result = window.create_file_dialog(
+                _folder_dialog_type(webview),
+                directory=start,
+                allow_multiple=False,
+            )
+            if not result:
+                return _ok(cancelled=True, path="")
+            selected = result[0] if isinstance(result, (tuple, list)) else result
+            return _ok(path=str(selected))
+        except Exception as exc:
+            return _error(exc, cancelled=True)
+
+    def _ssh_dir_or_home(self):
+        try:
+            return get_ssh_dir()
+        except Exception:
+            from pathlib import Path
+
+            return Path.home()
+
+    def _profile_fields(self, fields: dict[str, Any]) -> dict[str, Any]:
+        """Translate the dialog payload into git-key fields for profiles.py.
+
+        core.sshCommand comes either from a picked SSH key name ("ssh_key")
+        or a raw custom command ("ssh_command"); neither present = inherit.
+        """
+        converted: dict[str, Any] = {
+            "user.name": _blank_to_none(fields.get("user.name")),
+            "user.email": _blank_to_none(fields.get("user.email")),
+            "user.signingkey": _blank_to_none(fields.get("user.signingkey")),
+            "commit.gpgsign": _blank_to_none(fields.get("commit.gpgsign")),
+            "tag.gpgSign": _blank_to_none(fields.get("tag.gpgSign")),
+        }
+        ssh_key = _blank_to_none(fields.get("ssh_key"))
+        ssh_command = _blank_to_none(fields.get("ssh_command"))
+        if ssh_key:
+            converted["core.sshCommand"] = profiles.build_ssh_command(self._ssh_private_path(ssh_key))
+        elif ssh_command:
+            converted["core.sshCommand"] = ssh_command
+        else:
+            converted["core.sshCommand"] = None
+        return converted
+
+    def _ssh_private_path(self, name: str) -> str:
+        for key in discover_ssh_keys(get_ssh_dir()):
+            if key.name == name:
+                if not key.has_private_key:
+                    raise RuntimeError(f"SSH Key「{name}」沒有 Private Key，無法用於 core.sshCommand")
+                return str(key.private_path)
+        raise RuntimeError(f"找不到 SSH Key：{name}")
 
 
 def _list_roots() -> list[dict[str, str]]:

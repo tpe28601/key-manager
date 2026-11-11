@@ -1,5 +1,19 @@
 # Changelog — Key Manager
 
+## v1.2.0 (2026-11-11)
+
+- 新增「資料夾 Git 設定（Profiles）」：用全域 `includeIf.gitdir/i:` 依資料夾切換 user.name／user.email／
+  signingkey／commit.gpgsign／tag.gpgSign／core.sshCommand；每個欄位可選「沿用全域」，SSH Key 可從清單選或貼自訂指令
+- 所有 `.gitconfig` 讀寫一律透過 git 指令（`git config --global/--file/--get-regexp -z`），保留使用者註解與排版；
+  寫入前自動備份全域檔與 Profile 檔到 `backups/`（保留 20 份，介面可一鍵開啟）
+- 偵測並警示：Profile 設定被後寫的全域值蓋掉（提供「修正順序」一鍵把 includeIf 移到檔案最後）、
+  巢狀資料夾重疊與優先序、資料夾不存在、Profile 檔遺失；手寫 `includeIf` 指向的外部設定檔會被辨識為
+  「外部檔案」可直接編輯（刪除時只移 includeIf 行，不動檔案）；不支援的條件（如 `onbranch:`）唯讀呈現
+- 新增「檢查實際生效值」：在指定資料夾跑 `git config --show-origin --show-scope --get`，列出六項設定的
+  生效值、層級與來源檔案，並提示 worktree 的 `gitdir/i` 限制（主 repo 在 Profile 資料夾外的 worktree 不會套用）
+- SSH／GPG 列表新增「使用位置」欄位（全域／資料夾 Profile／`~/.ssh/config` Host），刪除金鑰前確認對話框會列出全部引用位置
+- 總覽新增「資料夾設定」狀態卡；SSH／GPG 頁、Git 頁與預覽模式（mock）同步支援
+
 ## v1.1.1 (2026-11-10)
 
 - 導入 Dev-Toolbox 設計系統：Web 模式承載 `ui-kit.css`（`uiKitTarget` 指向 `src/key_manager/web/static`，

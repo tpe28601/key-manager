@@ -276,8 +276,9 @@ input:focus-visible, select:focus-visible { box-shadow: var(--tb-focus); }
   background: var(--tb-surface); border-bottom: 1px solid var(--tb-border);
 }
 .topbar-spacer { display: none; }
-.content-scroll { grid-row: 2; grid-column: 1 / -1; padding: 14px 20px 28px; }
-.content-scroll > .page { max-width: 1180px; margin: 0 auto; }
+.content-scroll { grid-row: 2; grid-column: 1 / -1; padding: 14px clamp(20px, 3vw, 48px) 28px; }
+/* Wide screens: fill the viewport; the old 1180px cap left empty side gutters */
+.content-scroll > .page { width: 100%; }
 .brand { padding: 0; gap: 10px; flex: none; }
 .brand-icon { width: 30px; height: 30px; padding: 6px; border-radius: var(--tb-radius); background: var(--tb-accent-soft); }
 .brand-copy { flex-direction: row; align-items: baseline; gap: 6px; }

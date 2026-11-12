@@ -51,6 +51,7 @@ STATIC_FILES = {
     "/ui-kit.css": ("ui-kit.css", "text/css; charset=utf-8"),
     "/tb-theme.js": ("tb-theme.js", "application/javascript; charset=utf-8"),
     "/tb-icons.js": ("tb-icons.js", "application/javascript; charset=utf-8"),
+    "/tb-dirpicker.js": ("tb-dirpicker.js", "application/javascript; charset=utf-8"),
 }
 ADAPTER_TAG = '<script src="web-adapter.js"></script>'
 INDEX_MARKER = '<script src="icons.js">'

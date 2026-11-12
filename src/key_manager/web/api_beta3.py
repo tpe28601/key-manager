@@ -85,34 +85,48 @@ class KeyManagerApi(BaseKeyManagerApi):
 
     # ---- Web 模式（瀏覽器）替代對話框 ----
 
-    def browse_directories(self, path: str = "") -> dict[str, Any]:
-        """列出資料夾，給瀏覽器內的資料夾選擇器用。path 空白時回傳磁碟機 / 根目錄。"""
+    def browse_directories(self, path: str = "", scan: bool = False,
+                           depth: int = 2, limit: int = 50) -> dict[str, Any]:
+        """列出資料夾，給瀏覽器內的資料夾選擇器用（ui-kit tb-dirpicker 格式）。
+
+        path 空白時回傳磁碟機清單；scan=True 時在 path 下找 Git Repo（{repos}）。
+        回傳：{current, parent, items:[{name, path, hasGit}], truncated} 或 {repos}。
+        """
         try:
             raw = str(path or "").strip()
+            if scan:
+                return _ok(repos=_scan_repos(raw, depth=int(depth), limit=int(limit)))
             if not raw:
                 roots = _list_roots()
-                return _ok(path="", parent=None, dirs=roots, roots=roots)
+                items = [{"name": r["name"], "path": r["path"], "hasGit": False} for r in roots]
+                return _ok(current="", parent=None, items=items, truncated=False)
             current = Path(raw).expanduser()
             if not current.is_absolute():
                 raise ValueError("請輸入完整路徑")
             current = current.resolve()
             if not current.is_dir():
                 raise NotADirectoryError(f"找不到資料夾：{current}")
-            dirs: list[dict[str, str]] = []
+            items: list[dict[str, Any]] = []
+            truncated = False
             try:
                 entries = sorted(current.iterdir(), key=lambda p: p.name.lower())
             except PermissionError as exc:
                 raise PermissionError(f"沒有權限讀取：{current}") from exc
             for entry in entries:
                 try:
-                    if entry.is_dir():
-                        dirs.append({"name": entry.name, "path": str(entry)})
+                    if not entry.is_dir():
+                        continue
+                    if len(items) >= 500:
+                        truncated = True
+                        break
+                    items.append({"name": entry.name, "path": str(entry),
+                                  "hasGit": (entry / ".git").exists()})
                 except OSError:
                     continue
             parent = None if current.parent == current else str(current.parent)
-            return _ok(path=str(current), parent=parent, dirs=dirs, roots=_list_roots())
+            return _ok(current=str(current), parent=parent, items=items, truncated=truncated)
         except Exception as exc:
-            return _error(exc, path=str(path or ""), parent=None, dirs=[])
+            return _error(exc, current="", parent=None, items=[], truncated=False)
 
     def set_ssh_directory(self, path: str) -> dict[str, Any]:
         try:
@@ -255,6 +269,40 @@ class KeyManagerApi(BaseKeyManagerApi):
                     raise RuntimeError(f"SSH Key「{name}」沒有 Private Key，無法用於 core.sshCommand")
                 return str(key.private_path)
         raise RuntimeError(f"找不到 SSH Key：{name}")
+
+
+# 掃描 Git Repo 時略過的系統／依賴目錄（與 Git Ref Manager Browse-Filesystem 一致）
+_SCAN_SKIP_DIRS = {"$RECYCLE.BIN", "System Volume Information", "Windows",
+                   "Program Files", "Program Files (x86)", "ProgramData", "node_modules"}
+
+
+def _scan_repos(path: str, depth: int = 2, limit: int = 50) -> list[dict[str, str]]:
+    """在 path 底下以 DFS 找 .git 目錄（深度 depth、最多 limit 個）。"""
+    start = Path(str(path or "")).expanduser().resolve()
+    if not start.is_dir():
+        raise NotADirectoryError(f"找不到資料夾：{start}")
+    found: list[dict[str, str]] = []
+    stack: list[tuple[Path, int]] = [(start, 0)]
+    while stack and len(found) < limit:
+        current, level = stack.pop()
+        try:
+            children = sorted((p for p in current.iterdir() if p.is_dir()),
+                              key=lambda p: p.name.lower())
+        except OSError:
+            continue
+        for child in children:
+            if len(found) >= limit:
+                break
+            if child.name in _SCAN_SKIP_DIRS:
+                continue
+            try:
+                if (child / ".git").exists():
+                    found.append({"path": str(child), "name": child.name})
+            except OSError:
+                continue
+            if level < depth:
+                stack.append((child, level + 1))
+    return found
 
 
 def _list_roots() -> list[dict[str, str]]:

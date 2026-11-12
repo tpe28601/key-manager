@@ -297,17 +297,4 @@ html[data-embedded] .sidebar { grid-column: 1 / -1; }
   .topbar .button { padding: 0 10px; }
 }
 
-/* Web 模式資料夾選擇器 */
-.dir-modal { width: min(600px, calc(100vw - 32px)); }
-.dir-modal-body { gap: 10px; }
-.dir-pathbar { display: flex; gap: 8px; align-items: center; }
-.dir-pathbar input { flex: 1; min-width: 0; font-family: var(--tb-font-mono, ui-monospace, monospace); font-size: 12.5px; }
-.dir-roots { display: flex; flex-wrap: wrap; gap: 6px; }
-.chip-button { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); color: var(--text); font: inherit; font-size: 12.5px; cursor: pointer; }
-.chip-button:hover { border-color: var(--tb-accent, var(--border)); }
-.chip-button .icon svg { width: 14px; height: 14px; }
-.dir-list { list-style: none; margin: 0; padding: 4px; height: min(320px, 45vh); overflow: auto; border: 1px solid var(--border); border-radius: 10px; }
-.dir-item { display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 10px; border: 0; border-radius: 8px; background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.dir-item:hover, .dir-item:focus-visible { background: var(--tb-surface-hover, rgba(127,127,127,.12)); }
-.dir-item .icon { color: var(--muted); flex: none; }
-.dir-item .icon svg { width: 16px; height: 16px; }
+/* Web 模式資料夾挑選已改用 ui-kit tb-dirpicker（.tb-dp-* 樣式在 ui-kit.css） */

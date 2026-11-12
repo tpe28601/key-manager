@@ -60,9 +60,11 @@ def test_frontend_has_profile_ui_and_usage_column():
     assert "save_git_profile" in js and "fix_profile_order" in js
     assert "select_folder" in js  # mock + desktop picker fallback
 
-    # The folder browser is callback-based now (SSH flow stays as the default).
+    # The folder browser is callback-based now (SSH flow stays as the default),
+    # rendered by the shared ui-kit tb-dirpicker component.
     assert "window.KmDirBrowser" in beta3
-    assert "dirOnPick" in beta3
+    assert "TbDirPicker.open" in beta3
+    assert "options.onPick" in beta3
     assert "set_ssh_directory" in beta3
 
     assert ".profile-card" in css
@@ -72,8 +74,9 @@ def test_frontend_has_profile_ui_and_usage_column():
 
 def test_folder_picker_still_drives_ssh_directory_flow_without_callback():
     beta3 = (WEB / "beta3.js").read_text(encoding="utf-8")
-    assert "if (dirOnPick)" in beta3
-    assert beta3.index("if (dirOnPick)") < beta3.index("set_ssh_directory")
+    assert "if (typeof options.onPick === 'function')" in beta3
+    assert (beta3.index("if (typeof options.onPick === 'function')")
+            < beta3.index("set_ssh_directory"))
 
 
 def test_docs_cover_profiles_and_worktree_limitation():

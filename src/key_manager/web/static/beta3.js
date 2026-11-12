@@ -118,106 +118,38 @@
     }
   }
 
-  // ---- Web 模式：瀏覽器內的資料夾選擇器（桌面版用 pywebview 原生對話框） ----
-  let dirApi = null;
-  let dirCurrent = '';
-  // Optional callback mode (1.2): when dirOnPick is set, #dir-ok returns the
-  // picked path to the caller instead of running the SSH-directory flow.
-  let dirOnPick = null;
+  // ---- Web 模式：瀏覽器內的資料夾挑選（ui-kit tb-dirpicker 共用元件；桌面版用 pywebview 原生對話框） ----
+  // options: { startPath, title, subtitle, onPick }。subtitle 為舊介面欄位，統一後由元件標題承載。
   const DIR_DEFAULT_TITLE = '選擇 SSH Key 資料夾';
-  const DIR_DEFAULT_SUBTITLE = '點資料夾進入，確認後套用目前所在的資料夾';
-
-  function iconSpan(name) {
-    const span = document.createElement('span');
-    span.className = 'icon';
-    span.setAttribute('data-icon', name);
-    return span;
-  }
-
-  async function loadDir(path) {
-    const result = await dirApi.browse_directories(path || '');
-    if (!result?.ok) {
-      notify(result?.error || '讀取資料夾失敗', 'error');
+  async function openDirBrowser(api, options = {}) {
+    const fetchDir = async (path, opts) => {
+      if (opts && opts.scan) {
+        return api.browse_directories(path || '', true, opts.depth || 2, opts.limit || 50);
+      }
+      return api.browse_directories(path || '');
+    };
+    let picked;
+    try {
+      picked = await TbDirPicker.open({
+        title: options.title || DIR_DEFAULT_TITLE,
+        start: options.startPath || $('#ssh-local-path')?.value || '',
+        dirsOnly: true,
+        fetchDir,
+      });
+    } catch (error) {
+      return notify(error?.message || String(error), 'error');
+    }
+    if (!picked) return;
+    if (typeof options.onPick === 'function') {
+      try { await options.onPick(picked); } catch (error) { notify(error?.message || String(error), 'error'); }
       return;
     }
-    dirCurrent = result.path || '';
-    $('#dir-path').value = dirCurrent;
-    $('#dir-up').disabled = !result.parent && !dirCurrent;
-    $('#dir-up').dataset.parent = result.parent || '';
-    $('#dir-ok').disabled = !dirCurrent;
-
-    const roots = $('#dir-roots');
-    roots.replaceChildren();
-    (result.roots || []).forEach(root => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'chip-button';
-      btn.append(iconSpan('tabler:hard-drive'), document.createTextNode(root.name));
-      btn.addEventListener('click', () => loadDir(root.path));
-      roots.append(btn);
-    });
-
-    const list = $('#dir-list');
-    list.replaceChildren();
-    (result.dirs || []).forEach(dir => {
-      const li = document.createElement('li');
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'dir-item';
-      btn.title = dir.path;
-      btn.append(iconSpan(dirCurrent ? 'tabler:folder' : 'tabler:hard-drive'), document.createTextNode(dir.name));
-      btn.addEventListener('click', () => loadDir(dir.path));
-      li.append(btn);
-      list.append(li);
-    });
-    $('#dir-empty').hidden = (result.dirs || []).length > 0;
-    window.IconifyLocal?.renderIcons($('#dir-dialog'));
-    list.scrollTop = 0;
-  }
-
-  async function openDirBrowser(api, options = {}) {
-    dirApi = api;
-    dirOnPick = typeof options.onPick === 'function' ? options.onPick : null;
-    const title = $('#dir-title');
-    const subtitle = $('#dir-subtitle');
-    if (title) title.textContent = options.title || DIR_DEFAULT_TITLE;
-    if (subtitle) subtitle.textContent = options.subtitle || DIR_DEFAULT_SUBTITLE;
-    const dialog = $('#dir-dialog');
-    if (!dialog) return notify('找不到資料夾選擇視窗', 'error');
-    if (!dialog.dataset.bound) {
-      dialog.dataset.bound = '1';
-      const close = () => dialog.close();
-      $('#dir-cancel').addEventListener('click', close);
-      $('#dir-cancel-x').addEventListener('click', close);
-      $('#dir-up').addEventListener('click', () => loadDir($('#dir-up').dataset.parent || ''));
-      $('#dir-go').addEventListener('click', () => loadDir($('#dir-path').value.trim()));
-      $('#dir-path').addEventListener('keydown', event => {
-        if (event.key === 'Enter') { event.preventDefault(); loadDir($('#dir-path').value.trim()); }
-      });
-      $('#dir-ok').addEventListener('click', async () => {
-        if (!dirCurrent) return;
-        const picked = dirCurrent;
-        if (dirOnPick) {
-          const callback = dirOnPick;
-          dialog.close();
-          try { await callback(picked); } catch (error) { notify(error?.message || String(error), 'error'); }
-          return;
-        }
-        try {
-          const result = await dirApi.set_ssh_directory(picked);
-          if (!result?.ok) return notify(result?.error || '設定資料夾失敗', 'error');
-          dialog.close();
-          $('#ssh-local-path').value = result.ssh_dir || '';
-          notify('SSH Local Key 路徑已更新');
-          $('#refresh-btn')?.click();
-        } catch (error) {
-          notify(error?.message || String(error), 'error');
-        }
-      });
-    }
-    dialog.showModal();
     try {
-      await loadDir(options.startPath || $('#ssh-local-path').value || '');
+      const result = await api.set_ssh_directory(picked);
+      if (!result?.ok) return notify(result?.error || '設定資料夾失敗', 'error');
+      $('#ssh-local-path').value = result.ssh_dir || '';
+      notify('SSH Local Key 路徑已更新');
+      $('#refresh-btn')?.click();
     } catch (error) {
       notify(error?.message || String(error), 'error');
     }

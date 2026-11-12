@@ -39,6 +39,9 @@
 
   function renderIcons(root = document) {
     root.querySelectorAll('[data-icon]').forEach(node => {
+      // tb-icons.js renders <svg data-icon="..."> directly; re-rendering those
+      // here would nest a second svg inside (icons look small/offset). Skip them.
+      if (node.tagName.toLowerCase() === 'svg') return;
       const name = node.getAttribute('data-icon');
       if (node.dataset.renderedIcon !== name) {
         node.innerHTML = svgFor(name);

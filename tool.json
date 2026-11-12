@@ -12,5 +12,5 @@
   "requires": ["git"],
   "dataDir": "%LOCALAPPDATA%/DevToolbox/key-manager",
   "uiKitTarget": "src/key_manager/web/static",
-  "uiKit": "3.0.0"
+  "uiKit": "3.1.0"
 }

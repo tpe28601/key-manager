@@ -217,7 +217,7 @@
 
   function switchPage(page, refresh = true) {
     state.page = page;
-    $$('.nav-item').forEach(btn => btn.classList.toggle('active', btn.dataset.page === page));
+    $$('.nav-list .tb-tab').forEach(btn => btn.classList.toggle('is-active', btn.dataset.page === page));
     $$('.page').forEach(section => section.classList.toggle('active', section.id === `page-${page}`));
     if (refresh) refreshCurrent();
   }
@@ -895,7 +895,7 @@
   }
 
   function bindEvents() {
-    $$('.nav-item').forEach(btn => btn.addEventListener('click', () => switchPage(btn.dataset.page)));
+    $$('.nav-list .tb-tab').forEach(btn => btn.addEventListener('click', () => switchPage(btn.dataset.page)));
     $('#refresh-btn').addEventListener('click', refreshCurrent);
     $('#theme-btn').addEventListener('click', () => setTheme(THEME_ORDER[(THEME_ORDER.indexOf(currentThemeMode()) + 1) % THEME_ORDER.length]));
     document.addEventListener('tb-theme-change', paintThemeButton);

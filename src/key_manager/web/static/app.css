@@ -80,26 +80,7 @@ button { color: inherit; }
 .brand-copy strong { font-size: 18px; line-height: 1.2; letter-spacing: -0.2px; }
 .brand-copy span { color: var(--muted); font-size: 11.5px; }
 .nav-list { display: grid; gap: 6px; }
-.nav-item {
-  appearance: none;
-  border: 0;
-  background: transparent;
-  border-radius: 10px;
-  min-height: 42px;
-  padding: 0 11px;
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  cursor: pointer;
-  color: var(--muted);
-  text-align: left;
-  font-weight: 600;
-  transition: background 120ms ease, color 120ms ease, transform 120ms ease;
-}
-.nav-item:hover { background: var(--surface-hover); color: var(--text); }
-.nav-item:active { transform: translateY(1px); }
-.nav-item.active { background: var(--accent-soft); color: var(--accent-text); }
-.nav-item .icon { width: 20px; height: 20px; }
+.nav-list .tb-tab { flex: none; margin-bottom: 0; }   /* 分頁外觀採 ui-kit .tb-tab 標準（與 Build Runner 一致） */
 .sidebar-footer {
   margin-top: auto;
   padding: 14px 9px 4px;
@@ -145,7 +126,7 @@ h2 { font-size: 18px; line-height: 1.3; letter-spacing: -0.2px; font-weight: 680
 }
 .button:hover { background: var(--surface-hover); border-color: var(--border-strong); }
 .button:active { transform: translateY(1px); }
-.button:focus-visible, .icon-button:focus-visible, .nav-item:focus-visible, input:focus-visible, select:focus-visible {
+.button:focus-visible, .icon-button:focus-visible, input:focus-visible, select:focus-visible {
   outline: 3px solid color-mix(in srgb, var(--accent) 28%, transparent);
   outline-offset: 1px;
 }
@@ -248,13 +229,11 @@ input[readonly] { color: var(--muted); }
 .button.ghost:not(:disabled):hover { background: var(--tb-surface); border-color: var(--tb-accent); }
 .icon-button { border: 1px solid transparent; transition: background var(--tb-transition), border-color var(--tb-transition); }
 .icon-button:hover { border-color: var(--tb-border-strong); }
-.nav-item { border: 1px solid transparent; }
-.nav-item:hover { border-color: var(--tb-border); }
 .status-card, .form-panel, .table-wrap { transition: border-color var(--tb-transition), box-shadow var(--tb-transition); }
 .status-card:hover, .form-panel:hover { border-color: color-mix(in srgb, var(--tb-accent) 40%, var(--tb-border)); box-shadow: var(--tb-shadow); }
 .key-row:hover { box-shadow: inset 3px 0 0 var(--tb-accent); }
 input:focus-visible, select:focus-visible { box-shadow: var(--tb-focus); }
-.button:not(:disabled):hover .icon > svg, .nav-item:hover .icon > svg, .icon-button:hover .icon > svg { animation: tb-popicon .35s ease; }
+.button:not(:disabled):hover .icon > svg, .icon-button:hover .icon > svg { animation: tb-popicon .35s ease; }
 #refresh-btn:hover .icon > svg { animation: tb-spin .7s ease; }
 #theme-btn:hover .icon > svg { animation: tb-wiggle .5s ease; }
 @media (prefers-reduced-motion: reduce) { .icon > svg { animation: none !important; } }
@@ -284,15 +263,9 @@ input:focus-visible, select:focus-visible { box-shadow: var(--tb-focus); }
 .brand-copy { flex-direction: row; align-items: baseline; gap: 6px; }
 .brand-copy strong { font-size: var(--tb-fs-lg); font-weight: 650; white-space: nowrap; }
 .brand-copy span { font-size: var(--tb-fs-xs); white-space: nowrap; }
-.nav-list { display: flex; gap: 4px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.nav-list { display: flex; gap: 6px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
 .nav-list::-webkit-scrollbar { display: none; }
-.nav-item {
-  flex: none; min-height: 34px; padding: 0 12px; gap: 6px; border-radius: var(--tb-radius);
-  font-weight: 500; color: var(--tb-muted); border: 1px solid transparent;
-}
-.nav-item:hover { background: var(--tb-surface-2); color: var(--tb-text); border-color: var(--tb-border); }
-.nav-item.active { background: var(--tb-accent-soft); color: var(--tb-accent); border-color: transparent; font-weight: 600; }
-.nav-item .icon { width: 16px; height: 16px; }
+/* 分頁鈕外觀由 ui-kit .tb-tab 提供（上面 .nav-list .tb-tab 只調容器屬性） */
 /* 版本／作者縮成分頁列右側的小字；環境路徑太長不顯示 */
 .sidebar-footer { margin: 0 0 0 auto; padding: 0 4px; border: 0; display: flex; gap: 8px; align-items: center; white-space: nowrap; font-size: var(--tb-fs-xs); }
 .sidebar-footer > div { margin: 0; }
@@ -319,8 +292,8 @@ html[data-embedded] .sidebar { grid-column: 1 / -1; }
   .topbar { grid-row: 1; grid-column: 1; justify-content: flex-end; padding: 6px 10px; border-bottom: 0; }
   .content-scroll { grid-row: 3; }
   .brand { display: none; }
-  .nav-item > span:not(.icon) { display: none; }
-  .nav-item.active > span:not(.icon) { display: inline; }
+  .nav-list .tb-tab span { display: none; }
+  .nav-list .tb-tab.is-active span { display: inline; }
   .topbar .button { padding: 0 10px; }
 }
 

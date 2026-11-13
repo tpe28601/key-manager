@@ -54,16 +54,18 @@ def test_dashboard_card_and_js_target_profiles_page():
 def test_dir_picker_not_hidden_behind_modal_dialogs():
     beta3 = (WEB / "beta3.js").read_text(encoding="utf-8")
 
-    # showModal() dialogs paint in the top layer; the picker must hide open
-    # dialogs (with an Esc-cancel guard) while it runs and restore them
-    # (also on error) before anything else touches them.
-    hide = re.search(
-        r"dialog\[open\][\s\S]*?d\.style\.display = 'none'[\s\S]*?"
-        r"addEventListener\('cancel', guardCancel\)"
-        r"[\s\S]*?try \{[\s\S]*?TbDirPicker\.open\([\s\S]*?"
-        r"\} catch \(error\) \{[\s\S]*?\} finally \{[\s\S]*?"
-        r"d\.style\.display = prevDisplay\[i\][\s\S]*?removeEventListener\('cancel', guardCancel\)",
+    # A modal <dialog> paints in the top layer AND makes everything outside it
+    # inert, so the picker must be re-parented INTO the dialog (same trick as
+    # the toast host) — hiding the dialog instead leaves it unclickable.
+    reattach = re.search(
+        r"dialog\[open\][\s\S]*?const request = TbDirPicker\.open\([\s\S]*?"
+        r"const pickerRoot = document\.querySelector\('\.tb-dp'\)[\s\S]*?"
+        r"hostDialog\.append\(pickerRoot\)[\s\S]*?"
+        r"picked = await request[\s\S]*?\} finally \{[\s\S]*?"
+        r"removeEventListener\('cancel', guardCancel\)",
         beta3)
-    assert hide, "openDirBrowser must hide open dialogs around TbDirPicker.open and restore them in finally"
+    assert reattach, "openDirBrowser must re-parent .tb-dp into the open dialog and keep the Esc-cancel guard"
+    # the old hide-the-dialog approach must be gone (dialog would keep inert-ing the picker)
+    assert "d.style.display = 'none'" not in beta3
     notify_at = beta3.index("if (pickerError) return notify")
-    assert hide.end() < notify_at, "the error toast must fire after the dialogs are restored"
+    assert reattach.end() < notify_at, "the error toast must fire after the picker settles"

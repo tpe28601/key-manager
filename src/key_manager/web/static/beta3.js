@@ -128,32 +128,36 @@
       }
       return api.browse_directories(path || '');
     };
-    let picked;
-    // A showModal() dialog paints in the top layer above every z-index, so the
-    // picker (a normal fixed overlay) would render behind it. Hide open dialogs
-    // while the picker is up (form state stays), restore right after — same
-    // top-layer concern as the toast host in notify() above.
-    const modalShells = [...document.querySelectorAll('dialog[open]')];
-    const prevDisplay = modalShells.map(d => d.style.display);
-    // While a shell is hidden its modal state still lives: guard its Esc-cancel
-    // so the UA cannot close (and destroy) the dialog behind the picker.
+    // A showModal() dialog paints in the top layer AND leaves everything
+    // outside it inert — the picker would be both hidden behind and unclickable.
+    // Re-parent the picker into the dialog subtree so it paints above and stays
+    // interactive (same top-layer trick as the toast host in notify() above);
+    // close() removes it from whatever parent it ended up in.
+    const dialogsOpen = [...document.querySelectorAll('dialog[open]')];
+    const hostDialog = dialogsOpen.length ? dialogsOpen[dialogsOpen.length - 1] : null;
+    // Esc inside the picker must close only the picker, never the dialog behind
+    // it (tb-dirpicker stops the keydown; this also blocks the UA cancel).
     const guardCancel = (event) => event.preventDefault();
-    modalShells.forEach(d => { d.style.display = 'none'; d.addEventListener('cancel', guardCancel); });
+    if (hostDialog) hostDialog.addEventListener('cancel', guardCancel);
     // SSH flow keeps the ssh-dir fallback; callback flows (profile folders,
     // effective-value check) fall back to the drive list instead.
     const fallbackStart = typeof options.onPick === 'function' ? '' : ($('#ssh-local-path')?.value || '');
+    let picked;
     let pickerError = null;
     try {
-      picked = await TbDirPicker.open({
+      const request = TbDirPicker.open({
         title: options.title || DIR_DEFAULT_TITLE,
         start: options.startPath || fallbackStart,
         dirsOnly: true,
         fetchDir,
       });
+      const pickerRoot = document.querySelector('.tb-dp');   // open() appends it synchronously
+      if (pickerRoot && hostDialog) hostDialog.append(pickerRoot);
+      picked = await request;
     } catch (error) {
       pickerError = error;
     } finally {
-      modalShells.forEach((d, i) => { d.style.display = prevDisplay[i]; d.removeEventListener('cancel', guardCancel); });
+      if (hostDialog) hostDialog.removeEventListener('cancel', guardCancel);
     }
     if (pickerError) return notify(pickerError?.message || String(pickerError), 'error');
     if (!picked) return;

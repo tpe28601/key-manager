@@ -52,6 +52,7 @@ STATIC_FILES = {
     "/tb-theme.js": ("tb-theme.js", "application/javascript; charset=utf-8"),
     "/tb-icons.js": ("tb-icons.js", "application/javascript; charset=utf-8"),
     "/tb-dirpicker.js": ("tb-dirpicker.js", "application/javascript; charset=utf-8"),
+    "/tb-standalone-update.js": ("tb-standalone-update.js", "application/javascript; charset=utf-8"),
 }
 ADAPTER_TAG = '<script src="web-adapter.js"></script>'
 INDEX_MARKER = '<script src="icons.js">'
@@ -113,11 +114,11 @@ def resolve_data_dir(override: str | None) -> Path:
 
 # ---------------- api bridge ----------------
 
-def build_api_map() -> dict:
+def build_api_map(managed: bool = False) -> dict:
     api = KeyManagerApi(window_getter=lambda: None)
     methods = {}
     for name in dir(api):
-        if name.startswith("_"):
+        if name.startswith("_") or (managed and name in {"check_update", "open_update"}):
             continue
         attr = getattr(api, name)
         if callable(attr):
@@ -395,7 +396,7 @@ def main(argv: list[str] | None = None) -> int:
     bound_port = httpd.server_address[1]
     Handler.port = bound_port
     Handler.hub_origins = hub_origins_from(args.hub_origin)
-    Handler.api_map = build_api_map()
+    Handler.api_map = build_api_map(managed=bool(args.parent_pid))
     Handler.data_dir = data_dir
     Handler.started_at = time.time()
     Handler.static_dir = static_dir

@@ -108,6 +108,16 @@ class KeyManagerApi:
     def __init__(self, window_getter: WindowGetter) -> None:
         self._window_getter = window_getter
 
+    def check_update(self) -> dict[str, Any]:
+        from .standalone_update import check_update
+
+        return check_update(Path(__file__).resolve().parents[3])
+
+    def open_update(self, version: str) -> dict[str, Any]:
+        from .standalone_update import open_update
+
+        return open_update(Path(__file__).resolve().parents[3], version)
+
     def get_app_info(self) -> dict[str, Any]:
         info = detect_platform()
         return {

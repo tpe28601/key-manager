@@ -38,6 +38,7 @@
     <main class="main-area">
       <header class="topbar">
         <div class="topbar-spacer"></div>
+        <button id="standalone-update" class="button ghost tb-hidden" type="button" data-update-bridge="pywebview" hidden><i data-tb-icon="download" aria-hidden="true"></i></button>
         <button class="button ghost" id="refresh-btn"><span class="icon" data-icon="tabler:refresh"></span>重新整理</button>
         <button class="button ghost" id="theme-btn" title="切換主題：淺色 → 深色 → 跟隨系統"><span class="icon" data-icon="tabler:device-desktop"></span><span id="theme-text">跟隨系統</span></button>
       </header>
@@ -225,5 +226,6 @@
   <script src="icons.js"></script>
   <script src="app.js"></script>
   <script src="beta3.js"></script>
+<script src="tb-standalone-update.js" defer></script>
 </body>
 </html>

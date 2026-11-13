@@ -208,6 +208,25 @@ class KeyManagerApi(BaseKeyManagerApi):
         except Exception as exc:
             return _error(exc)
 
+    def list_config_backups(self) -> dict[str, Any]:
+        try:
+            return _ok(backups=profiles.list_backups())
+        except Exception as exc:
+            return _error(exc)
+
+    def read_config_backup(self, name: str) -> dict[str, Any]:
+        try:
+            return _ok(**profiles.read_backup(str(name)))
+        except Exception as exc:
+            return _error(exc)
+
+    def restore_config_backup(self, name: str) -> dict[str, Any]:
+        try:
+            result = profiles.restore_backup(str(name))
+            return _ok(message=f"已還原至 {result['target']}", **result)
+        except Exception as exc:
+            return _error(exc)
+
     def select_folder(self, path: str = "") -> dict[str, Any]:
         """Desktop-mode folder picker (web mode uses browse_directories)."""
         try:

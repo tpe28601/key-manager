@@ -12,13 +12,13 @@ WEB = ROOT / "src" / "key_manager" / "web" / "static"
 def test_release_metadata_is_current():
     from key_manager import metadata
 
-    assert metadata.APP_VERSION == "1.2.1"
-    assert metadata.APP_VERSION_LABEL == "1.2.1"
+    assert metadata.APP_VERSION == "1.2.2"
+    assert metadata.APP_VERSION_LABEL == "1.2.2"
     manifest = json.loads((ROOT / "tool.json").read_text(encoding="utf-8"))
-    assert manifest["version"] == "1.2.1"
+    assert manifest["version"] == "1.2.2"
     changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
-    assert "## v1.2.1" in changelog
-    assert changelog.index("## v1.2.1") < changelog.index("## v1.2.0")
+    assert "## v1.2.2" in changelog
+    assert changelog.index("## v1.2.2") < changelog.index("## v1.2.1")
 
 
 def test_profiles_is_its_own_page():

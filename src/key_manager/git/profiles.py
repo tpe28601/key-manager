@@ -176,6 +176,128 @@ def backup_file(path: Path) -> Path | None:
     return target
 
 
+# ---------------- backup browse / preview / restore (1.2.2) ----------------
+
+_BACKUP_PREVIEW_LIMIT = 200_000
+
+
+def _split_backup_name(file_name: str) -> tuple[str, str] | None:
+    """Split '<base>.<yyyyMMdd-HHmmss>[-NN]' into (base, stamp); None if foreign."""
+    match = _TIMESTAMP_SUFFIX.search(file_name)
+    if not match:
+        return None
+    return file_name[: match.start()], match.group(1)
+
+
+def _backup_path(name: str) -> Path:
+    """Validate a backup file name and return its path inside backups/."""
+    file_name = Path(str(name)).name
+    if file_name != str(name) or _split_backup_name(file_name) is None:
+        raise ProfileError(f"無效的備份檔名：{name}")
+    backup = backups_dir() / file_name
+    if not backup.is_file():
+        raise ProfileError(f"找不到備份檔：{file_name}")
+    return backup
+
+
+def _resolve_backup_target(backup_name: str) -> tuple[Path | None, str, str]:
+    """Map backups/<base>.<stamp> back to the file it can restore.
+
+    Returns (target_or_None, base, kind) with kind 'global' (the global
+    .gitconfig), 'profile' (a file inside profiles_dir) or 'unknown'
+    (e.g. an external includeIf target that no longer exists).
+    """
+    split = _split_backup_name(backup_name)
+    if split is None:
+        return None, "", "unknown"
+    base = split[0]
+    if base.casefold() == global_config_path().name.casefold():
+        return global_config_path(), base, "global"
+    candidate = profiles_dir() / base
+    if candidate.is_file():
+        return candidate, base, "profile"
+    return None, base, "unknown"
+
+
+def list_backups() -> list[dict[str, Any]]:
+    """Backup files, newest first, each mapped to its restore target."""
+    directory = backups_dir()
+    if not directory.is_dir():
+        return []
+    meta = load_profile_meta()
+    entries: list[tuple[tuple[str, int], dict[str, Any]]] = []
+    for item in directory.iterdir():
+        if not item.is_file():
+            continue
+        match = _TIMESTAMP_SUFFIX.search(item.name)
+        if match is None:
+            continue
+        target, _base, kind = _resolve_backup_target(item.name)
+        profile_id = target.stem if (target is not None and kind == "profile") else ""
+        try:
+            stat = item.stat()
+            modified = datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S")
+            size = stat.st_size
+        except OSError:
+            modified, size = "", 0
+        entries.append(
+            (
+                (match.group(1), int(match.group(2) or 1)),
+                {
+                    "name": item.name,
+                    "base": item.name[: match.start()],
+                    "target": kind,
+                    "profile_id": profile_id,
+                    "profile_name": (meta.get(profile_id) or {}).get("name", "") if profile_id else "",
+                    "path": str(target) if target else "",
+                    "restorable": bool(target is not None and target.is_file()),
+                    "size": size,
+                    "modified": modified,
+                },
+            )
+        )
+    entries.sort(key=lambda pair: (pair[0][0], pair[0][1], pair[1]["name"]), reverse=True)
+    return [entry for _key, entry in entries]
+
+
+def read_backup(name: str) -> dict[str, Any]:
+    """Preview a backup file's content (truncated for very large files)."""
+    backup = _backup_path(name)
+    payload = backup.read_bytes()
+    text = payload.decode("utf-8", errors="replace")
+    return {
+        "name": backup.name,
+        "size": len(payload),
+        "text": text[:_BACKUP_PREVIEW_LIMIT],
+        "truncated": len(payload) > _BACKUP_PREVIEW_LIMIT,
+    }
+
+
+def restore_backup(name: str) -> dict[str, Any]:
+    """Restore a backup over its current file (the current file is backed up first)."""
+    backup = _backup_path(name)
+    target, base, kind = _resolve_backup_target(backup.name)
+    if target is None:
+        raise ProfileError(
+            f"無法判斷 {base} 的還原目標（檔案可能已被移除或位於 Profile 之外），"
+            "請改用「開啟資料夾」將備份檔手動複製回原位"
+        )
+    if not target.is_file():
+        raise ProfileError(f"目標檔案已不存在：{target}")
+    try:
+        backup_file(target)  # the pre-restore snapshot makes the restore rollback-able
+    except OSError as exc:
+        raise ProfileError(f"還原前無法為目前檔案建立備份（目標未被改動）：{exc}") from exc
+    payload = backup.read_bytes()
+    tmp = target.with_name(target.name + ".key-manager-restore.tmp")
+    try:
+        tmp.write_bytes(payload)
+        os.replace(tmp, target)
+    finally:
+        tmp.unlink(missing_ok=True)
+    return {"name": backup.name, "target": str(target), "kind": kind, "size": len(payload)}
+
+
 def move_to_backups(path: Path) -> Path | None:
     path = Path(path)
     if not path.is_file():

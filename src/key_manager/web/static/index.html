@@ -97,7 +97,7 @@
             <div class="profile-toolbar">
               <button class="button primary" id="profile-add-btn"><span class="icon" data-icon="tabler:plus"></span>新增資料夾設定</button>
               <button class="button" id="profile-check-btn"><span class="icon" data-icon="tabler:search"></span>檢查實際生效值</button>
-              <button class="button ghost" id="profile-backup-btn"><span class="icon" data-icon="tabler:folder-open"></span>開啟備份資料夾</button>
+              <button class="button ghost" id="profile-backup-btn"><span class="icon" data-icon="tabler:history"></span>備份與還原…</button>
             </div>
             <div class="profile-list" id="profile-list"></div>
             <div class="empty-state visible" id="profile-empty">尚未建立資料夾設定；按「新增資料夾設定」開始</div>
@@ -198,6 +198,25 @@
       </div>
     </div>
     <div class="modal-actions"><button class="button" id="check-close" type="button">關閉</button></div>
+  </dialog>
+
+  <dialog id="backup-dialog" class="modal">
+    <div class="modal-head">
+      <div><h2>備份與還原</h2><p>每次寫入 Git 設定前都會自動備份（每個檔案各保留最近 20 份）；選一份預覽內容，確認後一鍵還原</p></div>
+      <button class="icon-button" id="backup-cancel-x" type="button" aria-label="關閉"><span class="icon" data-icon="tabler:x"></span></button>
+    </div>
+    <div class="modal-body backup-body">
+      <div class="backup-side">
+        <div class="backup-list" id="backup-list"></div>
+        <div class="empty-state" id="backup-empty">還沒有備份；修改 Git 設定後會自動出現在這裡</div>
+      </div>
+      <pre class="backup-preview" id="backup-preview">選擇左列的備份即可預覽內容</pre>
+    </div>
+    <div class="modal-actions backup-actions">
+      <button class="button ghost" id="backup-open-folder" type="button"><span class="icon" data-icon="tabler:folder-open"></span>開啟資料夾</button>
+      <button class="button primary" id="backup-restore" type="button" disabled><span class="icon" data-icon="tabler:history"></span>還原這一份</button>
+      <button class="button" id="backup-close" type="button">關閉</button>
+    </div>
   </dialog>
 
   <div class="toast-stack" id="toasts"></div>

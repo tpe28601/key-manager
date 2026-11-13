@@ -11,7 +11,7 @@ def test_tool_manifest_matches_release():
 
     assert manifest["specVersion"] == 1
     assert manifest["id"] == "key-manager"
-    assert manifest["version"] == "1.2.1"
+    assert manifest["version"] == "1.2.2"
     assert manifest["runtime"]["kind"] == "python"
     assert manifest["web"]["entry"] == "web_server.py"
     assert manifest["web"]["defaultPort"] == 8730

@@ -239,7 +239,7 @@ input:focus-visible, select:focus-visible { box-shadow: var(--tb-focus); }
 @media (prefers-reduced-motion: reduce) { .icon > svg { animation: none !important; } }
 
 /* ======================================================================
-   上方分頁版面（與 Git Ref Manager、Opencode Cfg Manager 一致）
+   上方分頁版面（與 Git Ref Manager、Agents Cfg Manager 一致）
    側欄改成頂部白底橫列：品牌＋分頁在左，重新整理／主題鈕在右，內容在下方捲動。
    HTML 結構不變（.sidebar 仍是導覽、.topbar 仍是工具鈕），只改排版。
    ====================================================================== */

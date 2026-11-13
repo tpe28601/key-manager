@@ -211,6 +211,13 @@
     }
     if (method === 'get_key_usage') return { ok: true, ...mockData.usage };
     if (method === 'open_backup_folder') return { ok: true, path: 'C:\\Users\\Mike\\AppData\\Local\\DevToolbox\\key-manager\\backups' };
+    if (method === 'list_config_backups') return { ok: true, backups: [
+      { name: '.gitconfig.20261113-093012', base: '.gitconfig', target: 'global', profile_id: '', profile_name: '', path: 'C:\\Users\\Mike\\.gitconfig', restorable: true, size: 812, modified: '2026-11-13 09:30:12' },
+      { name: 'client-a.gitconfig.20261112-175540', base: 'client-a.gitconfig', target: 'profile', profile_id: 'client-a', profile_name: 'Client A', path: 'C:\\Users\\Mike\\AppData\\Local\\DevToolbox\\key-manager\\profiles\\client-a.gitconfig', restorable: true, size: 233, modified: '2026-11-12 17:55:40' },
+      { name: 'old-notes.gitconfig.20261101-081203', base: 'old-notes.gitconfig', target: 'unknown', profile_id: '', profile_name: '', path: '', restorable: false, size: 96, modified: '2026-11-01 08:12:03' },
+    ] };
+    if (method === 'read_config_backup') return { ok: true, name: String(args[0] || ''), size: 78, truncated: false, text: '[user]\n\tname = Mike Lin\n\temail = mike@example.com\n[commit]\n\tgpgSign = true\n' };
+    if (method === 'restore_config_backup') return { ok: true, message: `Preview：已還原 ${args[0]}（未實際寫入檔案）`, name: String(args[0] || ''), target: 'C:\\Users\\Mike\\.gitconfig', kind: 'global', size: 78 };
     if (method === 'select_folder') return { ok: true, path: 'D:/Work/ProjectA' };
     return { ok: false, error: `Preview API 未實作：${method} ${args.length}` };
   }
@@ -831,15 +838,134 @@
     else toast('已開啟備份資料夾');
   }
 
+  // ---------------- 備份與還原（1.2.2） ----------------
+
+  let backupSelected = null;
+
+  function backupTargetLabel(entry) {
+    if (entry.target === 'global') return '全域 .gitconfig';
+    if (entry.target === 'profile') return `Profile：${entry.profile_name || entry.profile_id}`;
+    return `未知目標（${entry.base}）`;
+  }
+
+  function backupSizeLabel(bytes) {
+    const size = Number(bytes) || 0;
+    if (size >= 1024) return `${(size / 1024).toFixed(1)} KB`;
+    return `${size} B`;
+  }
+
+  async function openBackupDialog() {
+    backupSelected = null;
+    $('#backup-restore').disabled = true;
+    $('#backup-preview').textContent = '選擇左列的備份即可預覽內容';
+    $('#backup-dialog').showModal();
+    await loadBackups();
+  }
+
+  async function loadBackups() {
+    const result = await api('list_config_backups');
+    const list = $('#backup-list');
+    const empty = $('#backup-empty');
+    list.replaceChildren();
+    if (!showResult(result)) {
+      empty.textContent = '備份清單載入失敗，關閉後再開啟可重試';
+      empty.classList.add('visible');
+      return;
+    }
+    const backups = result.backups || [];
+    empty.textContent = '還沒有備份；修改 Git 設定後會自動出現在這裡';
+    empty.classList.toggle('visible', backups.length === 0);
+    backups.forEach(entry => list.append(backupRow(entry)));
+    if (backupSelected) {
+      // keep the selection across refreshes (e.g. a restore added a new backup),
+      // but always re-target the freshest data so labels/disabled match reality
+      const stillThere = backups.find(item => item.name === backupSelected.name);
+      if (stillThere) {
+        backupSelected = stillThere;
+        markBackupRow(stillThere);
+        $('#backup-restore').disabled = !stillThere.restorable;
+      } else {
+        backupSelected = null;
+        $('#backup-restore').disabled = true;
+      }
+    }
+  }
+
+  function backupRow(entry) {
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'backup-item';
+    row.dataset.backupName = entry.name;
+    const when = document.createElement('span');
+    when.className = 'backup-when';
+    when.textContent = entry.modified || '—';
+    const what = document.createElement('span');
+    what.className = 'backup-what';
+    what.textContent = backupTargetLabel(entry);
+    const size = document.createElement('span');
+    size.className = 'backup-size';
+    size.textContent = backupSizeLabel(entry.size);
+    row.append(when, what, size);
+    if (!entry.restorable) row.classList.add('is-foreign');
+    row.addEventListener('click', () => selectBackup(entry));
+    return row;
+  }
+
+  function markBackupRow(entry) {
+    $$('.backup-item').forEach(item => item.classList.toggle('is-selected', item.dataset.backupName === entry.name));
+  }
+
+  async function selectBackup(entry) {
+    backupSelected = entry;
+    markBackupRow(entry);
+    $('#backup-restore').disabled = !entry.restorable;
+    const preview = $('#backup-preview');
+    preview.textContent = '讀取中…';
+    const result = await api('read_config_backup', entry.name);
+    if (backupSelected !== entry) {
+      // user switched rows (or the list refresh dropped it) - drop this preview
+      if (!backupSelected) preview.textContent = '選擇左列的備份即可預覽內容';
+      return;
+    }
+    if (!result?.ok) { preview.textContent = result?.error || '預覽載入失敗'; return; }
+    preview.textContent = (result.text || '（空檔案）') + (result.truncated ? '\n…內容過長，預覽已截斷' : '');
+  }
+
+  async function restoreSelectedBackup() {
+    const entry = backupSelected;
+    if (!entry || !entry.restorable) return;
+    if (!window.confirm(`要還原備份「${entry.name}」嗎？\n\n將覆蓋：${backupTargetLabel(entry)}\n  ${entry.path}\n\n目前檔案會先自動備份，反悔時可回到這裡還原那一份。`)) return;
+    const button = $('#backup-restore');
+    button.disabled = true; // no double firing while the restore runs
+    let result;
+    try {
+      result = await api('restore_config_backup', entry.name);
+    } finally {
+      button.disabled = !backupSelected?.restorable;
+    }
+    if (showResult(result, `已還原 ${entry.name}`)) {
+      await loadBackups();
+      await loadGitProfiles();
+    }
+  }
+
   function scopeLabel(scope) {
     return { local: 'Repo（local）', global: '全域', system: '系統', worktree: 'Worktree', command: '指令列 -c' }[scope] || scope || '—';
+  }
+
+  function resetCheckDialog() {
+    // open with a fresh slate: no stale note/table, compact width until results exist
+    $('#check-note').hidden = true;
+    $('#check-note-text').textContent = '';
+    $('#check-result').hidden = true;
+    $('#profile-check-dialog').classList.remove('has-result');
   }
 
   async function runEffectiveCheck() {
     const folder = $('#check-path').value.trim();
     if (!folder) { toast('請先輸入資料夾路徑', 'error'); return; }
     const result = await api('check_effective_git_config', folder);
-    if (!showResult(result)) { $('#check-result').hidden = true; return; }
+    if (!showResult(result)) { $('#check-result').hidden = true; $('#profile-check-dialog').classList.remove('has-result'); return; }
     $('#check-note').hidden = !result.note;
     $('#check-note-text').textContent = result.note || '';
     const tbody = $('#check-body');
@@ -853,6 +979,7 @@
       tbody.append(tr);
     });
     $('#check-result').hidden = false;
+    $('#profile-check-dialog').classList.add('has-result');
   }
 
   async function submitSsh(event) {
@@ -918,8 +1045,12 @@
     $('#git-save-identity').addEventListener('click', saveGitIdentity);
     $('#git-save-signing').addEventListener('click', saveGitSigning);
     $('#profile-add-btn').addEventListener('click', () => openProfileDialog(null));
-    $('#profile-check-btn').addEventListener('click', () => $('#profile-check-dialog').showModal());
-    $('#profile-backup-btn').addEventListener('click', openBackupFolder);
+    $('#profile-check-btn').addEventListener('click', () => { resetCheckDialog(); $('#profile-check-dialog').showModal(); });
+    $('#profile-backup-btn').addEventListener('click', openBackupDialog);
+    $('#backup-open-folder').addEventListener('click', openBackupFolder);
+    $('#backup-restore').addEventListener('click', restoreSelectedBackup);
+    $('#backup-cancel-x').addEventListener('click', () => $('#backup-dialog').close());
+    $('#backup-close').addEventListener('click', () => $('#backup-dialog').close());
     $('#profile-cancel').addEventListener('click', () => $('#profile-dialog').close());
     $('#profile-cancel-x').addEventListener('click', () => $('#profile-dialog').close());
     $('#profile-form').addEventListener('submit', submitProfile);

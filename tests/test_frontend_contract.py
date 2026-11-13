@@ -5,12 +5,13 @@ ROOT = Path(__file__).resolve().parents[1]
 WEB = ROOT / "src" / "key_manager" / "web" / "static"
 
 
-def test_frontend_has_four_primary_pages_and_no_emoji_icons():
+def test_frontend_has_five_primary_pages_and_no_emoji_icons():
     html = (WEB / "index.html").read_text(encoding="utf-8")
     assert 'data-page="dashboard"' in html
     assert 'data-page="ssh"' in html
     assert 'data-page="gpg"' in html
     assert 'data-page="git"' in html
+    assert 'data-page="profiles"' in html
     assert "總覽" in html and "SSH 金鑰" in html and "GPG 金鑰" in html and "Git 設定" in html
     emoji_ranges = re.compile(r"[\U0001F300-\U0001FAFF]")
     assert not emoji_ranges.search(html)

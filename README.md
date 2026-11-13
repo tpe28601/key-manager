@@ -1,6 +1,6 @@
 # Key Manager
 
-**Key Manager 1.2.0** 是一套專為 Windows 打造的 SSH／GPG 金鑰管理工具，把散落在指令列裡的 `ssh-keygen`、`ssh-agent`、`gpg`、`git config` 操作，收進一個原生桌面視窗（pywebview）或本機瀏覽器頁面（Dev-Toolbox Web 模式）裡。不管是要生一把新的 SSH Key、把 Key 丟進 Agent、建立簽章用的 GPG Key，還是幫 Git commit 打開簽章，都可以在介面上點幾下完成，不用再背指令。
+**Key Manager 1.2.1** 是一套專為 Windows 打造的 SSH／GPG 金鑰管理工具，把散落在指令列裡的 `ssh-keygen`、`ssh-agent`、`gpg`、`git config` 操作，收進一個原生桌面視窗（pywebview）或本機瀏覽器頁面（Dev-Toolbox Web 模式）裡。不管是要生一把新的 SSH Key、把 Key 丟進 Agent、建立簽章用的 GPG Key，還是幫 Git commit 打開簽章，都可以在介面上點幾下完成，不用再背指令。
 
 它是 Git for Windows 內建工具（`ssh.exe`、`ssh-agent.exe`、`ssh-keygen.exe`、`gpg.exe`）的前台介面，本身不做任何加密運算，也**不會顯示或匯出 Private Key**——Passphrase 一律交給 Git for Windows AskPass（SSH）或 GnuPG Pinentry（GPG）的原生視窗處理。
 
@@ -44,7 +44,7 @@ tag.gpgSign=true
 ```
 
 ### 資料夾 Git 設定（Profiles）
-不同案子要用不同的 name／email／簽章 Key？在 Git 頁的「資料夾設定」建立 Profile：每個 Profile 對應一個专属設定檔與一或多個資料夾，Key Manager 用全域 `.gitconfig` 的 `includeIf.gitdir/i:` 讓這些資料夾（含子資料夾）裡的 repo 自動套用對應設定，離開資料夾就回到全域預設。
+不同案子要用不同的 name／email／簽章 Key？在左側「資料夾設定」頁建立 Profile：每個 Profile 對應一個专属設定檔與一或多個資料夾，Key Manager 用全域 `.gitconfig` 的 `includeIf.gitdir/i:` 讓這些資料夾（含子資料夾）裡的 repo 自動套用對應設定，離開資料夾就回到全域預設。
 
 - 每個欄位都可以選「沿用全域」：不寫入該設定，繼續吃全域值；SSH Key 可以從清單選，也可以貼自訂 `sshCommand`
 - 所有讀寫都透過 git 指令完成，你自己在 `.gitconfig` 寫的註解、排版與其他設定完全不會被改動；每次寫入前都會先備份到 `backups/`（保留最近 20 份，可從介面上直接開啟）

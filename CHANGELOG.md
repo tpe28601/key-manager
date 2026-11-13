@@ -1,5 +1,14 @@
 # Changelog — Key Manager
 
+## v1.2.1 (2026-11-13)
+
+- 「資料夾設定（Profiles）」從「Git 設定」頁獨立為側欄單獨一欄：新分頁「資料夾設定」
+  承接 Profiles 清單與工具列；總覽的「資料夾設定」狀態卡改往新分頁；「Git 設定」頁
+  保留 Identity 與 Signing 兩區塊
+- 修正 Web 版彈窗內按「瀏覽…」時資料夾挑選層在彈窗**背後**的問題：`showModal()` 的
+  `<dialog>` 繪於 top layer（任何 z-index 都壓不過），改為挑選期間暫時隱藏開啟中的
+  彈窗（並暫停其 Esc-cancel 防止誤關）、選完立即恢復，表單內容不受影響
+
 ## v1.2.0 (2026-11-11)
 
 - 新增「資料夾 Git 設定（Profiles）」：用全域 `includeIf.gitdir/i:` 依資料夾切換 user.name／user.email／

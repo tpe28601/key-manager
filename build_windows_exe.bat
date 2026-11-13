@@ -3,7 +3,7 @@ setlocal EnableExtensions EnableDelayedExpansion
 cd /d "%~dp0"
 
 echo ============================================================
-echo   Key Manager 1.2.0 - pywebview Windows Release Build
+echo   Key Manager 1.2.1 - pywebview Windows Release Build
 echo ============================================================
 
 set "PY_CMD="

@@ -129,16 +129,33 @@
       return api.browse_directories(path || '');
     };
     let picked;
+    // A showModal() dialog paints in the top layer above every z-index, so the
+    // picker (a normal fixed overlay) would render behind it. Hide open dialogs
+    // while the picker is up (form state stays), restore right after — same
+    // top-layer concern as the toast host in notify() above.
+    const modalShells = [...document.querySelectorAll('dialog[open]')];
+    const prevDisplay = modalShells.map(d => d.style.display);
+    // While a shell is hidden its modal state still lives: guard its Esc-cancel
+    // so the UA cannot close (and destroy) the dialog behind the picker.
+    const guardCancel = (event) => event.preventDefault();
+    modalShells.forEach(d => { d.style.display = 'none'; d.addEventListener('cancel', guardCancel); });
+    // SSH flow keeps the ssh-dir fallback; callback flows (profile folders,
+    // effective-value check) fall back to the drive list instead.
+    const fallbackStart = typeof options.onPick === 'function' ? '' : ($('#ssh-local-path')?.value || '');
+    let pickerError = null;
     try {
       picked = await TbDirPicker.open({
         title: options.title || DIR_DEFAULT_TITLE,
-        start: options.startPath || $('#ssh-local-path')?.value || '',
+        start: options.startPath || fallbackStart,
         dirsOnly: true,
         fetchDir,
       });
     } catch (error) {
-      return notify(error?.message || String(error), 'error');
+      pickerError = error;
+    } finally {
+      modalShells.forEach((d, i) => { d.style.display = prevDisplay[i]; d.removeEventListener('cancel', guardCancel); });
     }
+    if (pickerError) return notify(pickerError?.message || String(pickerError), 'error');
     if (!picked) return;
     if (typeof options.onPick === 'function') {
       try { await options.onPick(picked); } catch (error) { notify(error?.message || String(error), 'error'); }

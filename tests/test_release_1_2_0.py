@@ -10,11 +10,11 @@ WEB = ROOT / "src" / "key_manager" / "web" / "static"
 def test_release_metadata_is_1_2_0():
     from key_manager import metadata
 
-    assert metadata.APP_VERSION == "1.2.0"
-    assert metadata.APP_VERSION_LABEL == "1.2.0"
-    assert "filevers=(1, 2, 0, 0)" in (ROOT / "version_info.txt").read_text(encoding="utf-8")
+    assert metadata.APP_VERSION == "1.2.1"
+    assert metadata.APP_VERSION_LABEL == "1.2.1"
+    assert "filevers=(1, 2, 1, 0)" in (ROOT / "version_info.txt").read_text(encoding="utf-8")
     manifest = json.loads((ROOT / "tool.json").read_text(encoding="utf-8"))
-    assert manifest["version"] == "1.2.0"
+    assert manifest["version"] == "1.2.1"
 
 
 def test_1_2_modules_import_and_expose_api():

@@ -367,7 +367,8 @@
       if (state.page === 'dashboard') await loadDashboard();
       if (state.page === 'ssh') await loadSsh();
       if (state.page === 'gpg') await loadGpg();
-      if (state.page === 'git') await Promise.all([loadGit(), loadGitProfiles()]);
+      if (state.page === 'git') await loadGit();
+    if (state.page === 'profiles') await loadGitProfiles();
     } finally {
       setLoading(false);
     }
@@ -940,8 +941,9 @@
     $$('[data-action="open-ssh-create"]').forEach(btn => btn.addEventListener('click', () => { switchPage('ssh', false); $('#ssh-dialog').showModal(); }));
     $$('[data-action="open-gpg-create"]').forEach(btn => btn.addEventListener('click', () => { switchPage('gpg', false); $('#gpg-dialog').showModal(); }));
     $$('[data-action="open-git"]').forEach(btn => btn.addEventListener('click', () => switchPage('git')));
+    $$('[data-action="open-profiles"]').forEach(btn => btn.addEventListener('click', () => switchPage('profiles')));
     $('#dash-profiles-card').addEventListener('keydown', event => {
-      if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); switchPage('git'); }
+      if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); switchPage('profiles'); }
     });
   }
 

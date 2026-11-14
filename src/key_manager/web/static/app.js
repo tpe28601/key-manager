@@ -121,7 +121,7 @@
     const host = toastHost();
     if (stack.parentElement !== host) host.append(stack);
     const item = document.createElement('div');
-    item.className = `toast ${type}`;
+    item.className = `toast tb-theme-toast ${type}`;
     item.append(icon(type === 'error' ? 'tabler:alert-circle' : 'tabler:check'));
     const text = document.createElement('div');
     text.textContent = message;

@@ -206,8 +206,11 @@ input[readonly] { color: var(--muted); }
 
 .toast-stack { position: fixed; right: 22px; bottom: 22px; width: min(360px, calc(100vw - 44px)); display: grid; gap: 8px; z-index: 1000; pointer-events: none; }
 .toast { background: var(--surface); border: 1px solid var(--border); border-radius: 11px; box-shadow: 0 12px 42px rgba(0,0,0,.18); padding: 12px 14px; display: flex; gap: 10px; align-items: flex-start; animation: toastIn 160ms ease; }
-.toast.error { border-color: color-mix(in srgb, var(--danger) 55%, var(--border)); background: var(--danger-soft); }
-.toast.success { border-color: color-mix(in srgb, var(--success) 45%, var(--border)); background: var(--success-soft); }
+.toast.error { border-inline-start: 4px solid var(--tb-danger); }
+.toast.success { border-inline-start: 4px solid var(--tb-ok); }
+.toast > div { min-width: 0; overflow-wrap: anywhere; }
+.toast.error .icon { color: var(--tb-danger); }
+.toast.success .icon { color: var(--tb-ok); }
 .toast .icon { margin-top: 1px; }
 @keyframes toastIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 

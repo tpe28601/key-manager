@@ -9,6 +9,13 @@ if defined TB_ACTIVE_TOOL (
     exit /b
 )
 
+if exist "%~dp0runtime\python\python.exe" (
+    set "PYTHONPATH=%~dp0src"
+    "%~dp0runtime\python\python.exe" -m key_manager.main
+    if errorlevel 1 pause
+    exit /b
+)
+
 if not defined TB_KEY_MANAGER_VENV set "TB_KEY_MANAGER_VENV=%~dp0.venv"
 if exist "%TB_KEY_MANAGER_VENV%\Scripts\python.exe" goto :venv_ready
 

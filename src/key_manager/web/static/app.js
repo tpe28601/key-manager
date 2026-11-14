@@ -599,7 +599,7 @@
 
   function profileCard(profile) {
     const card = document.createElement('article');
-    card.className = `profile-card pf-${profile.kind}`;
+    card.className = `profile-card tb-theme-panel pf-${profile.kind}`;
     const head = document.createElement('div');
     head.className = 'profile-card-head';
     const title = document.createElement('div');

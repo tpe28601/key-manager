@@ -12,11 +12,11 @@
   <link rel="stylesheet" href="beta4.css">
   <link rel="stylesheet" href="beta5.css">
   <!-- 深淺色／強調色：網址 ?theme=&accent=（Hub 嵌入時帶入）> 記憶 > 跟隨系統 -->
-  <script src="tb-theme.js"></script>
+  <script src="tb-theme.js" data-tb-tool></script>
 </head>
 <body class="tb-app">
   <div class="app-shell">
-    <aside class="sidebar">
+    <aside class="sidebar tb-theme-panel">
       <div class="brand">
         <span class="icon brand-icon" data-icon="tabler:shield-lock"></span>
         <div class="brand-copy"><strong>Key Manager</strong><span>SSH &amp; GPG</span></div>
@@ -47,11 +47,11 @@
         <section class="page active" id="page-dashboard">
           <div class="page-heading"><div><h1>總覽</h1><p>查看 SSH、GPG 與 Git 的目前狀態</p></div></div>
           <div class="dashboard-grid">
-            <article class="status-card"><div class="card-label">SSH</div><div class="card-value" id="dash-ssh">讀取中…</div></article>
-            <article class="status-card"><div class="card-label">GPG</div><div class="card-value" id="dash-gpg">讀取中…</div></article>
-            <article class="status-card"><div class="card-label">Git Identity</div><div class="card-value" id="dash-git">讀取中…</div></article>
-            <article class="status-card"><div class="card-label">Git GPG Signing</div><div class="card-value" id="dash-signing">讀取中…</div></article>
-            <article class="status-card clickable" id="dash-profiles-card" data-action="open-profiles" role="button" tabindex="0" aria-label="前往資料夾設定"><div class="card-label">資料夾設定</div><div class="card-value" id="dash-profiles">讀取中…</div></article>
+            <article class="status-card tb-theme-panel"><div class="card-label">SSH</div><div class="card-value" id="dash-ssh">讀取中…</div></article>
+            <article class="status-card tb-theme-panel"><div class="card-label">GPG</div><div class="card-value" id="dash-gpg">讀取中…</div></article>
+            <article class="status-card tb-theme-panel"><div class="card-label">Git Identity</div><div class="card-value" id="dash-git">讀取中…</div></article>
+            <article class="status-card tb-theme-panel"><div class="card-label">Git GPG Signing</div><div class="card-value" id="dash-signing">讀取中…</div></article>
+            <article class="status-card tb-theme-panel clickable" id="dash-profiles-card" data-action="open-profiles" role="button" tabindex="0" aria-label="前往資料夾設定"><div class="card-label">資料夾設定</div><div class="card-value" id="dash-profiles">讀取中…</div></article>
           </div>
           <div class="action-row">
             <button class="button primary" data-action="open-ssh-create"><span class="icon" data-icon="tabler:key"></span>建立 SSH 金鑰</button>
@@ -63,23 +63,23 @@
         <section class="page" id="page-ssh">
           <div class="page-heading split"><div><h1>SSH 金鑰</h1><p id="ssh-status">管理本機 Public Key 與 SSH Agent</p></div><div class="page-heading-actions"><button class="button" id="agent-manage-btn"><span class="icon" data-icon="tabler:key"></span>管理 Agent</button><button class="button primary" id="ssh-create-btn"><span class="icon" data-icon="tabler:plus"></span>建立 SSH 金鑰</button></div></div>
           <div class="notice"><span class="icon" data-icon="tabler:info-circle"></span><span>SSH Agent 是暫存已解鎖私鑰的可選功能；未啟動不影響 Public Key 複製或匯出。</span></div>
-          <div class="table-wrap"><table><thead><tr><th>名稱</th><th>類型</th><th>Fingerprint</th><th>Comment</th><th>使用位置</th><th class="right">操作</th></tr></thead><tbody id="ssh-body"></tbody></table><div class="empty-state" id="ssh-empty">尚未找到 SSH Public Key</div></div>
+          <div class="table-wrap tb-theme-panel"><table><thead><tr><th>名稱</th><th>類型</th><th>Fingerprint</th><th>Comment</th><th>使用位置</th><th class="right">操作</th></tr></thead><tbody id="ssh-body"></tbody></table><div class="empty-state" id="ssh-empty">尚未找到 SSH Public Key</div></div>
         </section>
 
         <section class="page" id="page-gpg">
           <div class="page-heading split"><div><h1>GPG 金鑰</h1><p id="gpg-status">Key 列表由 Git Bash 中的 gpg 提供</p></div><button class="button primary" id="gpg-create-btn"><span class="icon" data-icon="tabler:plus"></span>建立 GPG 金鑰</button></div>
           <div class="notice"><span class="icon" data-icon="tabler:terminal-2"></span><span>Backend：C:\Program Files\Git\bin\bash.exe -lc "gpg …"，與你在 Git Bash 手動執行的環境一致。</span></div>
-          <div class="table-wrap"><table><thead><tr><th>使用者</th><th>演算法</th><th>Fingerprint</th><th>到期日</th><th>使用位置</th><th class="right">操作</th></tr></thead><tbody id="gpg-body"></tbody></table><div class="empty-state" id="gpg-empty">尚未找到 GPG Secret Key</div></div>
+          <div class="table-wrap tb-theme-panel"><table><thead><tr><th>使用者</th><th>演算法</th><th>Fingerprint</th><th>到期日</th><th>使用位置</th><th class="right">操作</th></tr></thead><tbody id="gpg-body"></tbody></table><div class="empty-state" id="gpg-empty">尚未找到 GPG Secret Key</div></div>
         </section>
 
         <section class="page" id="page-git">
           <div class="page-heading"><div><h1>Git 設定</h1><p id="git-status">設定 Git for Windows 全域身份與 Commit + Tag Signing</p></div></div>
-          <div class="form-panel">
+          <div class="form-panel tb-theme-panel">
             <h2>Git Identity</h2>
             <div class="form-grid"><label>Global user.name<input id="git-name" autocomplete="off"></label><label>Global user.email<input id="git-email" type="email" autocomplete="off"></label></div>
             <div class="action-row"><button class="button primary" id="git-save-identity"><span class="icon" data-icon="tabler:device-floppy"></span>儲存 Git Identity</button></div>
           </div>
-          <div class="form-panel">
+          <div class="form-panel tb-theme-panel">
             <h2>Commit + Tag Signing</h2>
             <div class="form-grid single">
               <label>Signing Key<select id="git-signing-key"></select></label>
@@ -94,7 +94,7 @@
 
         <section class="page" id="page-profiles">
           <div class="page-heading"><div><h1>資料夾設定（Profiles）</h1><p>用全域 <code>includeIf</code> 依資料夾切換 Git 身份與簽章；Key Manager 只增刪自己管理的 includeIf 行，你的註解與其他設定都會保留。</p></div></div>
-          <div class="form-panel" id="git-profiles-panel">
+          <div class="form-panel tb-theme-panel" id="git-profiles-panel">
             <div class="profile-toolbar">
               <button class="button primary" id="profile-add-btn"><span class="icon" data-icon="tabler:plus"></span>新增資料夾設定</button>
               <button class="button" id="profile-check-btn"><span class="icon" data-icon="tabler:search"></span>檢查實際生效值</button>
@@ -109,20 +109,20 @@
     </main>
   </div>
 
-  <dialog id="ssh-dialog" class="modal"><form method="dialog" id="ssh-form"><div class="modal-head"><div><h2>建立 SSH 金鑰</h2><p>預設使用 RSA 4096</p></div><button class="icon-button" id="ssh-cancel-x" type="button" aria-label="關閉"><span class="icon" data-icon="tabler:x"></span></button></div><div class="modal-body"><label>名稱<input name="filename" value="id_rsa" required></label><label>Email / Comment<input name="comment" type="text"></label><label>演算法<select name="algorithm"><option value="rsa4096" selected>RSA 4096</option><option value="ed25519">ED25519</option></select></label><label>Passphrase<input name="passphrase" type="password" autocomplete="new-password"></label><label>確認 Passphrase<input name="confirm" type="password" autocomplete="new-password"></label></div><div class="modal-actions"><button class="button" id="ssh-cancel" type="button">取消</button><button class="button primary" id="ssh-submit" type="submit">建立</button></div></form></dialog>
+  <dialog id="ssh-dialog" class="modal tb-theme-dialog"><form method="dialog" id="ssh-form"><div class="modal-head"><div><h2>建立 SSH 金鑰</h2><p>預設使用 RSA 4096</p></div><button class="icon-button" id="ssh-cancel-x" type="button" aria-label="關閉"><span class="icon" data-icon="tabler:x"></span></button></div><div class="modal-body"><label>名稱<input name="filename" value="id_rsa" required></label><label>Email / Comment<input name="comment" type="text"></label><label>演算法<select name="algorithm"><option value="rsa4096" selected>RSA 4096</option><option value="ed25519">ED25519</option></select></label><label>Passphrase<input name="passphrase" type="password" autocomplete="new-password"></label><label>確認 Passphrase<input name="confirm" type="password" autocomplete="new-password"></label></div><div class="modal-actions"><button class="button" id="ssh-cancel" type="button">取消</button><button class="button primary" id="ssh-submit" type="submit">建立</button></div></form></dialog>
 
-  <dialog id="gpg-dialog" class="modal"><form method="dialog" id="gpg-form"><div class="modal-head"><div><h2>建立 GPG 金鑰</h2><p>使用 Git Bash 內的 GPG</p></div><button class="icon-button" id="gpg-cancel-x" type="button" aria-label="關閉"><span class="icon" data-icon="tabler:x"></span></button></div><div class="modal-body"><label>Name<input name="name" required></label><label>Email<input name="email" type="email" required></label><label>演算法<select name="algorithm"><option value="rsa4096" selected>RSA 4096</option><option value="ed25519">ED25519</option></select></label><label>有效期限<select name="expire"><option value="1y">1 年</option><option value="2y" selected>2 年</option><option value="3y">3 年</option><option value="5y">5 年</option><option value="0">不過期</option></select></label><div class="notice"><span class="icon" data-icon="tabler:shield-lock"></span><span>密碼由 GnuPG 的 Pinentry 視窗設定。Key Manager 不會讀取、保存或傳送 GPG Passphrase。</span></div></div><div class="modal-actions"><button class="button" id="gpg-cancel" type="button">取消</button><button class="button primary" id="gpg-submit" type="submit">建立</button></div></form></dialog>
+  <dialog id="gpg-dialog" class="modal tb-theme-dialog"><form method="dialog" id="gpg-form"><div class="modal-head"><div><h2>建立 GPG 金鑰</h2><p>使用 Git Bash 內的 GPG</p></div><button class="icon-button" id="gpg-cancel-x" type="button" aria-label="關閉"><span class="icon" data-icon="tabler:x"></span></button></div><div class="modal-body"><label>Name<input name="name" required></label><label>Email<input name="email" type="email" required></label><label>演算法<select name="algorithm"><option value="rsa4096" selected>RSA 4096</option><option value="ed25519">ED25519</option></select></label><label>有效期限<select name="expire"><option value="1y">1 年</option><option value="2y" selected>2 年</option><option value="3y">3 年</option><option value="5y">5 年</option><option value="0">不過期</option></select></label><div class="notice"><span class="icon" data-icon="tabler:shield-lock"></span><span>密碼由 GnuPG 的 Pinentry 視窗設定。Key Manager 不會讀取、保存或傳送 GPG Passphrase。</span></div></div><div class="modal-actions"><button class="button" id="gpg-cancel" type="button">取消</button><button class="button primary" id="gpg-submit" type="submit">建立</button></div></form></dialog>
 
 
   <!-- 資料夾挑選改用 ui-kit tb-dirpicker.js 共用元件（DOM 由元件動態產生） -->
-  <dialog id="agent-dialog" class="modal agent-modal">
+  <dialog id="agent-dialog" class="modal tb-theme-dialog agent-modal">
     <div class="modal-head">
       <div><h2>SSH Agent 管理</h2><p id="agent-manager-status">讀取中…</p></div>
       <button class="icon-button" id="agent-cancel-x" type="button" aria-label="關閉"><span class="icon" data-icon="tabler:x"></span></button>
     </div>
     <div class="modal-body agent-modal-body">
       <div class="notice agent-notice"><span class="icon" data-icon="tabler:info-circle"></span><span>Agent 只暫存已解鎖的 Private Key。移除 Agent 內的 Key 不會刪除硬碟上的 Key 檔案。</span></div>
-      <div class="table-wrap agent-table-wrap">
+      <div class="table-wrap tb-theme-panel agent-table-wrap">
         <table class="agent-table"><thead><tr><th>名稱 / Comment</th><th>類型</th><th>Fingerprint</th><th class="right">操作</th></tr></thead><tbody id="agent-body"></tbody></table>
         <div class="empty-state" id="agent-empty">Agent 目前沒有載入 Key</div>
       </div>
@@ -135,7 +135,7 @@
     </div>
   </dialog>
 
-  <dialog id="profile-dialog" class="modal profile-modal">
+  <dialog id="profile-dialog" class="modal tb-theme-dialog profile-modal">
     <form method="dialog" id="profile-form">
       <div class="modal-head">
         <div><h2 id="profile-dialog-title">新增資料夾設定</h2><p>設定寫入專屬 Profile 檔，並用 includeIf 套用到下列資料夾</p></div>
@@ -182,7 +182,7 @@
     </form>
   </dialog>
 
-  <dialog id="profile-check-dialog" class="modal">
+  <dialog id="profile-check-dialog" class="modal tb-theme-dialog">
     <div class="modal-head">
       <div><h2>檢查實際生效值</h2><p>在指定資料夾執行 git config，列出真正生效的值與來源檔案</p></div>
       <button class="icon-button" id="check-cancel-x" type="button" aria-label="關閉"><span class="icon" data-icon="tabler:x"></span></button>
@@ -194,14 +194,14 @@
         <button class="button primary" id="check-run" type="button"><span class="icon" data-icon="tabler:search"></span>檢查</button>
       </div>
       <div class="notice" id="check-note" hidden><span class="icon" data-icon="tabler:info-circle"></span><span id="check-note-text"></span></div>
-      <div class="table-wrap" id="check-result" hidden>
+      <div class="table-wrap tb-theme-panel" id="check-result" hidden>
         <table><thead><tr><th>設定</th><th>生效值</th><th>層級</th><th>來源檔案</th></tr></thead><tbody id="check-body"></tbody></table>
       </div>
     </div>
     <div class="modal-actions"><button class="button" id="check-close" type="button">關閉</button></div>
   </dialog>
 
-  <dialog id="backup-dialog" class="modal">
+  <dialog id="backup-dialog" class="modal tb-theme-dialog">
     <div class="modal-head">
       <div><h2>備份與還原</h2><p>每次寫入 Git 設定前都會自動備份（每個檔案各保留最近 20 份）；選一份預覽內容，確認後一鍵還原</p></div>
       <button class="icon-button" id="backup-cancel-x" type="button" aria-label="關閉"><span class="icon" data-icon="tabler:x"></span></button>

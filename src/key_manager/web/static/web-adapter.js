@@ -6,10 +6,7 @@
   'use strict';
 
   // 深淺色與 data-embedded 由 tb-theme.js 處理；這裡只補嵌入用樣式與 API 橋接
-  const params = new URLSearchParams(location.search);
-  const theme = params.get('theme');
-  const THEMES = ['light', 'dark', 'system'];
-  if (params.get('embedded') === '1') {
+  if (document.documentElement.dataset.embedded === '1') {
     // Hub already provides the window chrome; hide the tool's own topbar.
     // (External stylesheet: CSP style-src 'self' rejects inline <style>.)
     const link = document.createElement('link');
@@ -50,15 +47,9 @@
     })
   };
 
-  // app.js/beta3.js register their pywebviewready listeners during script
-  // evaluation; fire the event (and sync the Hub-provided theme first) once
-  // the document is ready so the real bridge always wins over mock data.
+  // app.js/beta3.js register their pywebviewready listeners during script evaluation.
   document.addEventListener('DOMContentLoaded', () => {
-    window.setTimeout(async () => {
-      // Hub 帶來的主題同步寫回設定，獨立開啟時也會延用
-      if (THEMES.includes(theme)) {
-        try { await window.pywebview.api.set_theme(theme); } catch (_) {}
-      }
+    window.setTimeout(() => {
       window.dispatchEvent(new Event('pywebviewready'));
     }, 0);
   });

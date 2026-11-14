@@ -58,7 +58,7 @@ ADAPTER_TAG = '<script src="web-adapter.js"></script>'
 INDEX_MARKER = '<script src="icons.js">'
 
 CSP_HTML_BASE = (
-    "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; "
+    "default-src 'self'; script-src 'self'; img-src 'self' data:; "
     "connect-src 'self'; base-uri 'none'; form-action 'none'; "
 )
 HUB_ORIGIN_RE = re.compile(r"^http://(127\.0\.0\.1|localhost):(\d{1,5})$")
@@ -150,7 +150,10 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
         ancestors = "frame-ancestors " + " ".join(["'self'", *self.hub_origins])
-        self.send_header("Content-Security-Policy", CSP_HTML_BASE + ancestors if html else ancestors)
+        if html:
+            theme_sources = " ".join(f"{origin}/tool-theme.css" for origin in self.hub_origins)
+            ancestors = CSP_HTML_BASE + f"style-src 'self' {theme_sources}; " + ancestors
+        self.send_header("Content-Security-Policy", ancestors)
         self.send_header("Referrer-Policy", "no-referrer")
         self.end_headers()
         if self.command != "HEAD":

@@ -205,18 +205,20 @@
   }
 
   async function restoreTheme() {
+    if (document.documentElement.dataset.embedded === '1') return;
     const api = bridge();
     if (!api?.get_theme) return;
     try {
       const result = await api.get_theme();
       if (result?.ok) {
-        // settings.json 是主題的正本；Hub 嵌入時網址指定的主題優先，不覆蓋
-        if (!new URLSearchParams(location.search).get('theme')) applyTheme(result.theme);
+        const params = new URLSearchParams(location.search);
+        if (!params.get('theme') || params.get('embedded') === '1') applyTheme(result.theme);
       }
     } catch (_) {}
   }
 
   async function persistCurrentTheme() {
+    if (document.documentElement.dataset.embedded === '1') return;
     const api = bridge();
     if (!api?.set_theme) return;
     const value = currentMode();

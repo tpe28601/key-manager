@@ -9,48 +9,16 @@ if defined TB_ACTIVE_TOOL (
     exit /b
 )
 
-if exist "%~dp0runtime\python\python.exe" (
-    set "PYTHONPATH=%~dp0src"
-    "%~dp0runtime\python\python.exe" -m key_manager.main
-    if errorlevel 1 pause
-    exit /b
-)
-
-if not defined TB_KEY_MANAGER_VENV set "TB_KEY_MANAGER_VENV=%~dp0.venv"
-if exist "%TB_KEY_MANAGER_VENV%\Scripts\python.exe" goto :venv_ready
-
-echo [Key Manager] First run: creating a local virtual environment...
-set "PY_CMD="
-py -3.12 -c "import sys" >nul 2>&1 && set "PY_CMD=py -3.12"
-if not defined PY_CMD set "PY_CMD=python"
-%PY_CMD% -m venv "%TB_KEY_MANAGER_VENV%"
-if errorlevel 1 (
-  echo.
-  echo Failed to create .venv. Make sure Python 3.11+ ^(3.12 recommended^) is installed.
-  pause
-  exit /b 1
-)
-
-:venv_ready
-set "PY=%TB_KEY_MANAGER_VENV%\Scripts\python.exe"
-
-"%PY%" -c "import webview" >nul 2>&1
-if errorlevel 1 (
-  echo [Key Manager] Installing dependencies...
-  "%PY%" -m pip install --upgrade pip >nul
-  "%PY%" -m pip install -e .
-  if errorlevel 1 (
-    echo.
-    echo Failed to install dependencies. Check your internet connection and try again.
+set "TB_PYTHON="
+for /f "delims=" %%I in ('powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Standalone-Update.ps1" -Action Python') do set "TB_PYTHON=%%I"
+if not defined TB_PYTHON (
+    echo Key Manager requires compatible Python 3.11+ with pywebview, cryptography and bcrypt.
+    echo Download the full package or install the missing requirements.
     pause
-    exit /b 1
-  )
+    exit /b 5
 )
-
-set "PYTHONPATH=%CD%\src"
-"%PY%" -m key_manager.main
-if errorlevel 1 (
-  echo.
-  echo Key Manager exited with an error.
-  pause
-)
+set "PYTHONPATH=%~dp0src;%~dp0runtime-deps"
+"%TB_PYTHON%" -m key_manager.main
+set "TB_RESULT=%ERRORLEVEL%"
+if not "%TB_RESULT%"=="0" pause
+exit /b %TB_RESULT%

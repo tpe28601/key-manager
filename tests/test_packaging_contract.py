@@ -7,7 +7,7 @@ def test_project_uses_pywebview_not_qt():
     text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     assert '"pywebview' in text.lower()
     assert "PySide6" not in text
-    assert 'version = "1.2.3"' in text
+    assert 'version = "1.2.4"' in text
     assert 'authors = [{name = "Mike Lin"}]' in text
 
 

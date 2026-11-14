@@ -4,7 +4,7 @@
   "kind": "tool",
   "id": "key-manager",
   "name": "Key Manager",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "description": "SSH / GPG 金鑰與 Git 簽章設定管理（pywebview 桌面版 + Dev-Toolbox Web 版）",
   "runtime": { "kind": "python", "min": "3.11" },
   "web": { "entry": "web_server.py", "defaultPort": 8730, "health": "/api/health" },

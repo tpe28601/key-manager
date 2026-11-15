@@ -22,3 +22,5 @@ Thumbs.db
 *.pem
 *.asc
 !THIRD_PARTY_NOTICES.md
+/updates/
+/.updates-*.tmp/

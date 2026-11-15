@@ -217,6 +217,7 @@
       { name: 'old-notes.gitconfig.20261101-081203', base: 'old-notes.gitconfig', target: 'unknown', profile_id: '', profile_name: '', path: '', restorable: false, size: 96, modified: '2026-11-01 08:12:03' },
     ] };
     if (method === 'read_config_backup') return { ok: true, name: String(args[0] || ''), size: 78, truncated: false, text: '[user]\n\tname = Mike Lin\n\temail = mike@example.com\n[commit]\n\tgpgSign = true\n' };
+    if (method === 'create_repo_config_backups') return { ok: true, names: [], failures: [], message: '預覽模式：已模擬建立 Repo 設定備份' };
     if (method === 'restore_config_backup') return { ok: true, message: `Preview：已還原 ${args[0]}（未實際寫入檔案）`, name: String(args[0] || ''), target: 'C:\\Users\\Mike\\.gitconfig', kind: 'global', size: 78 };
     if (method === 'select_folder') return { ok: true, path: 'D:/Work/ProjectA' };
     return { ok: false, error: `Preview API 未實作：${method} ${args.length}` };
@@ -224,8 +225,14 @@
 
   function switchPage(page, refresh = true) {
     state.page = page;
-    $$('.nav-list .tb-tab').forEach(btn => btn.classList.toggle('is-active', btn.dataset.page === page));
+    $$('.nav-list .tb-tab').forEach(btn => {
+      const active = btn.dataset.page === page;
+      btn.classList.toggle('is-active', active);
+      if (active) btn.setAttribute('aria-current', 'page');
+      else btn.removeAttribute('aria-current');
+    });
     $$('.page').forEach(section => section.classList.toggle('active', section.id === `page-${page}`));
+    $('.content-scroll').scrollTop = 0;
     if (refresh) refreshCurrent();
   }
 
@@ -233,7 +240,6 @@
     const info = await api('get_app_info');
     $('#footer-version').textContent = `v${info.version_label || info.version || '1.0 Preview'}`;
     $('#footer-author').textContent = info.author || 'Mike Lin';
-    $('#environment').textContent = `環境：${info.system || 'Windows'}\n${info.home || ''}`;
   }
 
   async function loadDashboard() {
@@ -338,8 +344,10 @@
 
   async function loadGit() {
     const [configResult, keysResult] = await Promise.all([api('read_git_config'), api('list_gpg_keys')]);
+    const status = $('#git-status');
     if (!configResult.ok) {
-      $('#git-status').textContent = configResult.error || 'Git 設定讀取失敗';
+      status.textContent = configResult.error || 'Git 全域設定讀取失敗';
+      status.hidden = false;
       return;
     }
     state.gitConfig = configResult.config;
@@ -365,7 +373,8 @@
     if (cfg.signing_key && state.gpgKeys.some(key => key.fingerprint === cfg.signing_key)) select.value = cfg.signing_key;
     updateGitFingerprint();
     const signingMismatch = !!cfg.commit_gpgsign !== !!cfg.tag_gpgsign;
-    $('#git-status').textContent = signingMismatch ? 'Commit / Tag 簽章設定目前不一致；重新套用可同步兩者' : '已載入 Git for Windows 全域設定；Commit + Tag 使用同一組 GPG Key';
+    status.textContent = signingMismatch ? '目前只有 Commit 或 Tag 其中一項啟用自動簽章。套用此頁的簽章設定會同步兩項。' : '';
+    status.hidden = !signingMismatch;
   }
 
   async function refreshCurrent() {
@@ -375,7 +384,11 @@
       if (state.page === 'ssh') await loadSsh();
       if (state.page === 'gpg') await loadGpg();
       if (state.page === 'git') await loadGit();
-    if (state.page === 'profiles') await loadGitProfiles();
+      if (state.page === 'profiles') await loadGitProfiles();
+      if (state.page === 'backups') {
+        $('#backup-folder-label').textContent = window.KM_WEB_MODE || state.mock ? '查看備份路徑' : '開啟備份資料夾';
+        if (!backupBusy) await loadBackups();
+      }
     } finally {
       setLoading(false);
     }
@@ -513,13 +526,10 @@
 
   function pickFolder(startPath = '') {
     if (window.KM_WEB_MODE && !state.mock && window.KmDirBrowser) {
-      return new Promise(resolve => {
-        window.KmDirBrowser.open(state.bridge || window.pywebview?.api, {
-          startPath,
-          title: '選擇資料夾',
-          subtitle: '點資料夾進入，確認後加入目前的清單',
-          onPick: path => resolve(path),
-        });
+      return window.KmDirBrowser.open(state.bridge || window.pywebview?.api, {
+        startPath,
+        title: '選擇資料夾',
+        pickOnly: true,
       });
     }
     return api('select_folder', startPath).then(result => {
@@ -702,7 +712,8 @@
     const li = document.createElement('li');
     const input = document.createElement('input');
     input.type = 'text';
-    input.className = 'pf-folder-input';
+    input.className = 'pf-folder-input tb-theme-control';
+    input.setAttribute('aria-label', '資料夾路徑');
     input.value = pathValue || '';
     input.placeholder = '例如 D:/Work/ClientA';
     input.spellcheck = false;
@@ -816,7 +827,7 @@
   async function deleteGitProfile(profile) {
     const folderText = profile.folders.map(folder => folder.folder || folder.condition).join('\n  ');
     const fileNote = profile.kind === 'managed'
-      ? 'Profile 檔會移到 backups/ 備份，不會直接刪除。'
+      ? '可從「備份與還原」復原 Profile 設定和資料夾關聯。'
       : '只移除 includeIf 設定，外部檔案本身保留。';
     if (!window.confirm(`確定要移除資料夾設定「${profile.name}」？\n\n影響的資料夾：\n  ${folderText}\n\n${fileNote}\n全域檔的註解與其他設定不會被改動。`)) return;
     const result = await api('delete_git_profile', profile.id);
@@ -833,18 +844,31 @@
 
   async function openBackupFolder() {
     const result = await api('open_backup_folder');
-    if (!result.ok) { toast(result.error || '無法開啟備份資料夾', 'error'); return; }
-    if (window.KM_WEB_MODE) toast(`備份資料夾：${result.path}`);
-    else toast('已開啟備份資料夾');
+    const showPath = window.KM_WEB_MODE || state.mock;
+    if (!result?.ok) {
+      toast(result?.error || (showPath ? '無法取得備份路徑' : '無法開啟備份資料夾'), 'error');
+      return;
+    }
+    if (!showPath) { toast('已開啟備份資料夾'); return; }
+    if (state.page !== 'backups') return;
+    const input = $('#backup-location-path');
+    input.value = result.path;
+    $('#backup-location').hidden = false;
+    input.focus();
+    input.select();
   }
 
-  // ---------------- 備份與還原（1.2.2） ----------------
+  // ---------------- 備份與還原 ----------------
 
   let backupSelected = null;
+  let backupPreviewReady = false;
+  let backupBusy = false;
 
   function backupTargetLabel(entry) {
     if (entry.target === 'global') return '全域 .gitconfig';
     if (entry.target === 'profile') return `Profile：${entry.profile_name || entry.profile_id}`;
+    if (entry.target === 'deleted-profile') return `已刪除的 Profile：${entry.profile_name || entry.profile_id}`;
+    if (entry.target === 'repo') return `Repo：${entry.repo.split(/[\\/]/).pop()}`;
     return `未知目標（${entry.base}）`;
   }
 
@@ -854,39 +878,64 @@
     return `${size} B`;
   }
 
-  async function openBackupDialog() {
-    backupSelected = null;
-    $('#backup-restore').disabled = true;
-    $('#backup-preview').textContent = '選擇左列的備份即可預覽內容';
-    $('#backup-dialog').showModal();
-    await loadBackups();
+  function setBackupBusy(busy) {
+    backupBusy = busy;
+    $('#backup-create').disabled = busy;
+    $('#backup-restore').disabled = busy || !backupPreviewReady || !backupSelected?.restorable;
   }
 
-  async function loadBackups() {
+  async function createRepoBackups(event) {
+    event.preventDefault();
+    if (backupBusy) return;
+    const path = $('#backup-repo-path').value.trim();
+    if (!path) { $('#backup-repo-path').focus(); return; }
+    const recursive = $('#backup-repo-scope').value === 'recursive';
+    const status = $('#backup-create-status');
+    status.hidden = false;
+    status.textContent = '正在建立備份…';
+    setBackupBusy(true);
+    try {
+      const result = await api('create_repo_config_backups', path, recursive);
+      const failures = (result?.failures || []).map(item => item.repo + '：' + item.error);
+      status.textContent = [result?.message || result?.error || '無法建立備份', ...failures].join('\n');
+      if (result?.ok) await loadBackups(result.names?.[0]);
+    } finally {
+      setBackupBusy(false);
+    }
+  }
+
+  function clearBackupSelection() {
+    backupSelected = null;
+    backupPreviewReady = false;
+    $('#backup-restore').disabled = true;
+    $('#backup-detail').textContent = '請從清單選擇一份備份。';
+    $('#backup-preview').textContent = '選擇備份後即可預覽內容';
+  }
+
+  async function loadBackups(preferredName) {
     const result = await api('list_config_backups');
     const list = $('#backup-list');
     const empty = $('#backup-empty');
     list.replaceChildren();
     if (!showResult(result)) {
-      empty.textContent = '備份清單載入失敗，關閉後再開啟可重試';
+      clearBackupSelection();
+      empty.textContent = '備份清單載入失敗，請按「重新整理」重試。';
       empty.classList.add('visible');
       return;
     }
     const backups = result.backups || [];
-    empty.textContent = '還沒有備份；修改 Git 設定後會自動出現在這裡';
+    empty.textContent = '還沒有備份。可從上方選擇資料夾並建立備份。';
     empty.classList.toggle('visible', backups.length === 0);
     backups.forEach(entry => list.append(backupRow(entry)));
-    if (backupSelected) {
+    const selectedName = preferredName || backupSelected?.name;
+    if (selectedName) {
       // keep the selection across refreshes (e.g. a restore added a new backup),
       // but always re-target the freshest data so labels/disabled match reality
-      const stillThere = backups.find(item => item.name === backupSelected.name);
+      const stillThere = backups.find(item => item.name === selectedName);
       if (stillThere) {
-        backupSelected = stillThere;
-        markBackupRow(stillThere);
-        $('#backup-restore').disabled = !stillThere.restorable;
+        await selectBackup(stillThere);
       } else {
-        backupSelected = null;
-        $('#backup-restore').disabled = true;
+        clearBackupSelection();
       }
     }
   }
@@ -895,6 +944,7 @@
     const row = document.createElement('button');
     row.type = 'button';
     row.className = 'backup-item';
+    row.setAttribute('aria-pressed', 'false');
     row.dataset.backupName = entry.name;
     const when = document.createElement('span');
     when.className = 'backup-when';
@@ -906,46 +956,56 @@
     size.className = 'backup-size';
     size.textContent = backupSizeLabel(entry.size);
     row.append(when, what, size);
+    row.title = entry.name;
     if (!entry.restorable) row.classList.add('is-foreign');
     row.addEventListener('click', () => selectBackup(entry));
     return row;
   }
 
   function markBackupRow(entry) {
-    $$('.backup-item').forEach(item => item.classList.toggle('is-selected', item.dataset.backupName === entry.name));
+    $$('.backup-item').forEach(item => {
+      const selected = item.dataset.backupName === entry.name;
+      item.classList.toggle('is-selected', selected);
+      item.setAttribute('aria-pressed', String(selected));
+    });
   }
 
   async function selectBackup(entry) {
     backupSelected = entry;
+    backupPreviewReady = false;
     markBackupRow(entry);
-    $('#backup-restore').disabled = !entry.restorable;
+    $('#backup-restore').disabled = true;
+    const details = [backupTargetLabel(entry)];
+    if (entry.folders?.length) details.push(...entry.folders);
+    if (entry.path) details.push(entry.path);
+    if (!entry.restorable) details.push('僅供預覽');
+    $('#backup-detail').textContent = details.join('\n');
     const preview = $('#backup-preview');
     preview.textContent = '讀取中…';
     const result = await api('read_config_backup', entry.name);
-    if (backupSelected !== entry) {
-      // user switched rows (or the list refresh dropped it) - drop this preview
-      if (!backupSelected) preview.textContent = '選擇左列的備份即可預覽內容';
-      return;
-    }
+    if (backupSelected !== entry) return;
     if (!result?.ok) { preview.textContent = result?.error || '預覽載入失敗'; return; }
     preview.textContent = (result.text || '（空檔案）') + (result.truncated ? '\n…內容過長，預覽已截斷' : '');
+    backupPreviewReady = true;
+    $('#backup-restore').disabled = backupBusy || !entry.restorable;
   }
 
   async function restoreSelectedBackup() {
     const entry = backupSelected;
-    if (!entry || !entry.restorable) return;
-    if (!window.confirm(`要還原備份「${entry.name}」嗎？\n\n將覆蓋：${backupTargetLabel(entry)}\n  ${entry.path}\n\n目前檔案會先自動備份，反悔時可回到這裡還原那一份。`)) return;
-    const button = $('#backup-restore');
-    button.disabled = true; // no double firing while the restore runs
-    let result;
+    if (!entry?.restorable || !backupPreviewReady || backupBusy) return;
+    const target = entry.target === 'deleted-profile'
+      ? `將重新建立資料夾設定，並套用到：\n${entry.folders.join('\n')}`
+      : `將覆蓋：${backupTargetLabel(entry)}\n${entry.path}\n\n目前檔案會先自動備份。`;
+    if (!window.confirm(`要還原備份「${entry.name}」嗎？\n\n${target}`)) return;
+    setBackupBusy(true);
     try {
-      result = await api('restore_config_backup', entry.name);
+      const result = await api('restore_config_backup', entry.name);
+      if (showResult(result, `已還原 ${entry.name}`)) {
+        state.usageLoaded = false;
+        await loadBackups();
+      }
     } finally {
-      button.disabled = !backupSelected?.restorable;
-    }
-    if (showResult(result, `已還原 ${entry.name}`)) {
-      await loadBackups();
-      await loadGitProfiles();
+      setBackupBusy(false);
     }
   }
 
@@ -1012,9 +1072,12 @@
   }
   function paintThemeButton() {
     const mode = currentThemeMode();
-    $('#theme-text').textContent = THEME_LABEL[mode] || mode;
-    $('#theme-btn .icon').dataset.icon = THEME_ICON[mode] || 'tabler:sun';
-    window.IconifyLocal.renderIcons($('#theme-btn'));
+    const button = $('#theme-btn');
+    const label = `切換主題（目前為${THEME_LABEL[mode] || mode}）`;
+    button.title = label;
+    button.setAttribute('aria-label', label);
+    button.querySelector('.icon').dataset.icon = THEME_ICON[mode] || 'tabler:sun';
+    window.IconifyLocal.renderIcons(button);
   }
   function setTheme(mode) {
     if (window.TbTheme) window.TbTheme.set(mode);
@@ -1046,11 +1109,14 @@
     $('#git-save-signing').addEventListener('click', saveGitSigning);
     $('#profile-add-btn').addEventListener('click', () => openProfileDialog(null));
     $('#profile-check-btn').addEventListener('click', () => { resetCheckDialog(); $('#profile-check-dialog').showModal(); });
-    $('#profile-backup-btn').addEventListener('click', openBackupDialog);
     $('#backup-open-folder').addEventListener('click', openBackupFolder);
+    $('#backup-create-form').addEventListener('submit', createRepoBackups);
+    $('#backup-repo-browse').addEventListener('click', async () => {
+      const input = $('#backup-repo-path');
+      const picked = await pickFolder(input.value.trim());
+      if (picked) input.value = picked;
+    });
     $('#backup-restore').addEventListener('click', restoreSelectedBackup);
-    $('#backup-cancel-x').addEventListener('click', () => $('#backup-dialog').close());
-    $('#backup-close').addEventListener('click', () => $('#backup-dialog').close());
     $('#profile-cancel').addEventListener('click', () => $('#profile-dialog').close());
     $('#profile-cancel-x').addEventListener('click', () => $('#profile-dialog').close());
     $('#profile-form').addEventListener('submit', submitProfile);

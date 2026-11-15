@@ -60,42 +60,50 @@ button { color: inherit; }
 .app-shell {
   height: 100vh;
   display: grid;
-  grid-template-columns: 214px minmax(0, 1fr);
-  gap: 14px;
-  padding: 14px;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
 }
-.sidebar {
+.topbar, .nav-list {
   min-width: 0;
   display: flex;
-  flex-direction: column;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  padding: 16px 12px;
+  align-items: center;
+  padding-inline: 18px;
+  background: var(--tb-surface);
+  border-bottom: 1px solid var(--tb-border);
 }
-.brand { display: flex; align-items: center; gap: 10px; padding: 8px 9px 18px; }
-.brand-icon { width: 24px; height: 24px; color: var(--accent); }
-.brand-copy { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.brand-copy strong { font-size: 18px; line-height: 1.2; letter-spacing: -0.2px; }
-.brand-copy span { color: var(--muted); font-size: 11.5px; }
-.nav-list { display: grid; gap: 6px; }
-.nav-list .tb-tab { flex: none; margin-bottom: 0; }   /* 分頁外觀採 ui-kit .tb-tab 標準（與 Build Runner 一致） */
-.sidebar-footer {
-  margin-top: auto;
-  padding: 14px 9px 4px;
-  border-top: 1px solid var(--border);
+.topbar { grid-column: 1 / -1; padding-block: 10px; gap: 8px; flex-wrap: wrap; }
+.brand { display: inline-flex; align-items: center; gap: 10px; flex: none; }
+.brand-copy { display: flex; align-items: baseline; gap: 6px; white-space: nowrap; }
+.brand-copy strong { font-size: var(--tb-fs-lg); font-weight: 650; }
+.brand-copy span, .topbar-meta, #server-port { font-size: var(--tb-fs-xs); color: var(--muted); }
+.topbar-controls, .topbar-meta, .server-status:not([hidden]) { display: flex; align-items: center; gap: 8px; }
+.topbar-controls { margin-inline-start: auto; flex-wrap: wrap; justify-content: flex-end; }
+.topbar-meta { white-space: nowrap; }
+.server-status { white-space: nowrap; }
+.topbar-meta strong { color: var(--text); font-weight: 650; }
+.nav-list {
+  grid-row: 2;
+  grid-column: 1 / -1;
+  gap: 6px;
+  padding-block: 8px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.nav-list .tb-tab { flex: none; white-space: nowrap; }
+.content-scroll {
+  grid-row: 3;
+  grid-column: 1 / -1;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 14px clamp(20px, 3vw, 48px) 28px;
+}
+.panel-intro {
+  margin-bottom: 14px;
   color: var(--muted);
-  font-size: 12px;
-  line-height: 1.55;
 }
-.sidebar-footer strong { color: var(--text); font-weight: 650; }
-.environment { margin-top: 6px; overflow-wrap: anywhere; }
-
-.main-area { min-width: 0; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); }
-.topbar { min-height: 48px; display: flex; gap: 8px; align-items: center; padding: 0 2px 8px; }
-.topbar-spacer { flex: 1; }
-.content-scroll { min-height: 0; overflow: auto; padding: 0 4px 24px 0; }
+#page-git .form-panel h2 { margin-bottom: 0; }
+#git-status { margin-bottom: 14px; }
 .page { display: none; padding: 8px 8px 18px; }
 .page.active { display: block; animation: fadeIn 140ms ease; }
 @keyframes fadeIn { from { opacity: .4; transform: translateY(2px); } to { opacity: 1; transform: none; } }
@@ -241,63 +249,29 @@ input:focus-visible, select:focus-visible { box-shadow: var(--tb-focus); }
 #theme-btn:hover .icon > svg { animation: tb-wiggle .5s ease; }
 @media (prefers-reduced-motion: reduce) { .icon > svg { animation: none !important; } }
 
-/* ======================================================================
-   上方分頁版面（與 Git Ref Manager、Agents Cfg Manager 一致）
-   側欄改成頂部白底橫列：品牌＋分頁在左，重新整理／主題鈕在右，內容在下方捲動。
-   HTML 結構不變（.sidebar 仍是導覽、.topbar 仍是工具鈕），只改排版。
-   ====================================================================== */
-.app-shell, .app-shell { grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto minmax(0, 1fr); gap: 0; padding: 0; }
-.main-area { display: contents; }
-.sidebar {
-  grid-row: 1; grid-column: 1; flex-direction: row; align-items: center; gap: 14px; min-width: 0;
-  padding: 8px 8px 8px 20px; border: 0; border-bottom: 1px solid var(--tb-border); border-radius: 0; box-shadow: none;
-  background: var(--tb-surface);
-}
-.topbar {
-  grid-row: 1; grid-column: 2; min-height: 0; padding: 8px 16px 8px 8px; gap: 6px;
-  background: var(--tb-surface); border-bottom: 1px solid var(--tb-border);
-}
-.topbar-spacer { display: none; }
-.content-scroll { grid-row: 2; grid-column: 1 / -1; padding: 14px clamp(20px, 3vw, 48px) 28px; }
-/* Wide screens: fill the viewport; the old 1180px cap left empty side gutters */
-.content-scroll > .page { width: 100%; }
-.brand { padding: 0; gap: 10px; flex: none; }
-.brand-icon { width: 30px; height: 30px; padding: 6px; border-radius: var(--tb-radius); background: var(--tb-accent-soft); }
-.brand-copy { flex-direction: row; align-items: baseline; gap: 6px; }
-.brand-copy strong { font-size: var(--tb-fs-lg); font-weight: 650; white-space: nowrap; }
-.brand-copy span { font-size: var(--tb-fs-xs); white-space: nowrap; }
-.nav-list { display: flex; gap: 6px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
-.nav-list::-webkit-scrollbar { display: none; }
-/* 分頁鈕外觀由 ui-kit .tb-tab 提供（上面 .nav-list .tb-tab 只調容器屬性） */
-/* 版本／作者縮成分頁列右側的小字；環境路徑太長不顯示 */
-.sidebar-footer { margin: 0 0 0 auto; padding: 0 4px; border: 0; display: flex; gap: 8px; align-items: center; white-space: nowrap; font-size: var(--tb-fs-xs); }
-.sidebar-footer > div { margin: 0; }
-.sidebar-footer .environment { display: none; }
-.topbar .button { min-height: 34px; }
-
-/* Hub 嵌入：隱藏品牌與版本小字，分頁列保留 */
-html[data-embedded] .brand, html[data-embedded] .sidebar-footer { display: none; }
-html[data-embedded] .sidebar { grid-column: 1 / -1; }
-
-@media (max-width: 900px) {
-  .app-shell { grid-template-columns: minmax(0, 1fr) auto; }
-  .sidebar-footer { display: none; }
-}
 @media (max-width: 760px) {
   .brand-copy span { display: none; }
-  #theme-text { display: none; }
   .content-scroll { padding: 12px 12px 24px; }
   .page-heading.split { flex-direction: column; align-items: flex-start; }
 }
 @media (max-width: 560px) {
-  .app-shell { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr); }
-  .sidebar { grid-row: 2; grid-column: 1; padding: 6px 10px; }
-  .topbar { grid-row: 1; grid-column: 1; justify-content: flex-end; padding: 6px 10px; border-bottom: 0; }
-  .content-scroll { grid-row: 3; }
-  .brand { display: none; }
-  .nav-list .tb-tab span { display: none; }
-  .nav-list .tb-tab.is-active span { display: inline; }
-  .topbar .button { padding: 0 10px; }
+  .topbar, .nav-list { padding-inline: 10px; }
+  .topbar-meta { display: none; }
 }
 
 /* Web 模式資料夾挑選已改用 ui-kit tb-dirpicker（.tb-dp-* 樣式在 ui-kit.css） */
+.km-picker-dialog {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  overflow: visible;
+  background: transparent;
+}
+.km-picker-dialog::backdrop { background: transparent; }
+.km-picker-dialog .tb-dp__list { min-height: 0; }

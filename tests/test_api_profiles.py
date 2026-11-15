@@ -207,6 +207,40 @@ def test_open_backup_folder_without_window(git_env):
     assert Path(result["path"]).is_dir()
 
 
+def test_create_repo_config_backups_and_restore_one_target(git_env, git_cli):
+    api = make_api()
+    workspace = git_env / "workspace"
+    first, second = workspace / "first", workspace / "second"
+    for repo in (first, second):
+        repo.mkdir(parents=True)
+        git_cli("init", "-q", cwd=repo)
+        git_cli("config", "--local", "user.name", repo.name, cwd=repo)
+    nested = first / "src"
+    nested.mkdir()
+    global_before = profiles.global_config_path().read_bytes()
+
+    single = api.create_repo_config_backups(str(nested))
+    assert single["ok"] and len(single["names"]) == 1, single
+    result = api.create_repo_config_backups(str(workspace), recursive=True)
+    assert result["ok"], result
+    entries = [item for item in api.list_config_backups()["backups"] if item["name"] in result["names"]]
+    assert len(entries) == 2
+    assert {Path(item["repo"]).name for item in entries} == {"first", "second"}
+    backup = next(item for item in entries if Path(item["repo"]).name == "first")
+    assert backup["target"] == "repo" and backup["restorable"]
+    git_cli("config", "--local", "user.name", "Changed", cwd=first)
+    preview = api.read_config_backup(backup["name"])
+    assert preview["ok"] and "first" in preview["text"]
+    assert git_cli("config", "--local", "user.name", cwd=first).stdout.strip() == "Changed"
+    restored = api.restore_config_backup(backup["name"])
+    assert restored["ok"], restored
+    assert git_cli("config", "--local", "user.name", cwd=first).stdout.strip() == "first"
+    assert git_cli("config", "--local", "user.name", cwd=second).stdout.strip() == "second"
+    assert profiles.global_config_path().read_bytes() == global_before
+    assert any("Changed" in api.read_config_backup(item["name"])["text"]
+               for item in api.list_config_backups()["backups"] if item["target"] == "repo")
+
+
 class FakeWindow:
     def __init__(self, selected):
         self.selected = selected

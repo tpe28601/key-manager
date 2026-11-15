@@ -18,7 +18,7 @@ def test_app_info_has_release_identity():
     info = api.get_app_info()
 
     assert info["name"] == "Key Manager"
-    assert info["version"] == "1.2.5"
+    assert info["version"] == "1.3.0"
     assert info["author"] == "Mike Lin"
     assert info["ui"] == "pywebview"
 

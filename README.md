@@ -1,6 +1,6 @@
 # Key Manager
 
-**Key Manager 1.2.5** 是一套專為 Windows 打造的 SSH／GPG 金鑰管理工具，把散落在指令列裡的 `ssh-keygen`、`ssh-agent`、`gpg`、`git config` 操作，收進一個原生桌面視窗（pywebview）或本機瀏覽器頁面（Dev-Toolbox Web 模式）裡。不管是要生一把新的 SSH Key、把 Key 丟進 Agent、建立簽章用的 GPG Key，還是幫 Git commit 打開簽章，都可以在介面上點幾下完成，不用再背指令。
+**Key Manager 1.3.0** 是一套專為 Windows 打造的 SSH／GPG 金鑰管理工具，把散落在指令列裡的 `ssh-keygen`、`ssh-agent`、`gpg`、`git config` 操作，收進一個原生桌面視窗（pywebview）或本機瀏覽器頁面（Dev-Toolbox Web 模式）裡。不管是要生一把新的 SSH Key、把 Key 丟進 Agent、建立簽章用的 GPG Key，還是幫 Git commit 打開簽章，都可以在介面上點幾下完成，不用再背指令。
 
 它是 Git for Windows 內建工具（`ssh.exe`、`ssh-agent.exe`、`ssh-keygen.exe`、`gpg.exe`）的前台介面，本身不做任何加密運算，也**不會顯示或匯出 Private Key**——Passphrase 一律交給 Git for Windows AskPass（SSH）或 GnuPG Pinentry（GPG）的原生視窗處理。
 
@@ -32,8 +32,14 @@
 - 複製或匯出 ASCII Armor 格式的 Public Key。
 - 刪除不需要的 Secret / Public Key。
 
-### Git Commit / Tag GPG Signing
-一鍵套用簽章設定，Key Manager 會幫你把下面這些全域 Git 設定寫好：
+### Git 設定（全域）
+
+這一頁修改目前使用者的 Git 全域預設值。需要為公司和個人專案使用不同設定時，到「資料夾設定」為各專案資料夾指定值。Repo 自身的設定也可以覆蓋全域值。
+
+- **Commit 作者資訊**設定新 Commit 使用的名稱（`user.name`）和信箱（`user.email`）。填完後按「儲存作者資訊」。
+- **Commit 與 Tag 的 GPG 簽章**使用選定的 GPG 金鑰簽署新建立的 Commit 和 Tag。選擇金鑰後，切換「啟用自動簽章（Commit 與 Tag）」並按「套用簽章設定」，兩項自動簽章會一起開啟或關閉。
+
+啟用簽章時，Key Manager 會使用 Git for Windows 內附的 GPG。典型的全域設定如下。
 
 ```text
 gpg.format=openpgp
@@ -44,14 +50,23 @@ tag.gpgSign=true
 ```
 
 ### 資料夾 Git 設定（Profiles）
-不同案子要用不同的 name／email／簽章 Key？在左側「資料夾設定」頁建立 Profile：每個 Profile 對應一個专属設定檔與一或多個資料夾，Key Manager 用全域 `.gitconfig` 的 `includeIf.gitdir/i:` 讓這些資料夾（含子資料夾）裡的 repo 自動套用對應設定，離開資料夾就回到全域預設。
 
-- 每個欄位都可以選「沿用全域」：不寫入該設定，繼續吃全域值；SSH Key 可以從清單選，也可以貼自訂 `sshCommand`
-- 所有讀寫都透過 git 指令完成，你自己在 `.gitconfig` 寫的註解、排版與其他設定完全不會被改動；每次寫入前都會先備份到 `backups/`（每個檔案各保留最近 20 份），在「備份與還原…」視窗可瀏覽清單、預覽任何一份的內容並一鍵還原（還原前同樣先備份目前的檔案，可反悔），也能開資料夾手動處理
-- 「檢查實際生效值」會在指定資料夾跑 `git config --show-origin --show-scope`，列出真正生效的值與來源檔案；Profile 設定被全域值蓋掉、資料夾巢狀重疊或資料夾不见了都會在卡片上示警，並提供一鍵「修正順序」
-- 你手寫 `includeIf` 指向的既有設定檔也會被辨識出來（標示為外部檔案），可以直接在介面上編輯，刪除 Profile 時只移除了 `includeIf` 行，檔案本身保留
+一份 Profile 可以套用到一或多個資料夾。以 `D:/Work/ClientA` 為例，將它加入公司用的 Profile 後，該資料夾及其子資料夾內的 Repo 就能共用公司的作者名稱、信箱和金鑰。
 
-> ⚠️ 限制：`includeIf.gitdir/i:` 是以 repo 的 `.git` 位置判斷。`git worktree` 開到資料夾外面時照常套用（`.git` 在主 repo），但**主 repo 在 Profile 資料夾外的 worktree 不會套用**該 Profile；「檢查實際生效值」遇到這種情況會明確提示。
+1. 在「資料夾設定」按「新增設定」，填入名稱，再加入要套用的資料夾。
+2. 指定 Commit 作者名稱、信箱和 GPG 簽章金鑰，並分別決定 Commit、Tag 是否自動簽章。使用 SSH 連線的 Git 遠端可指定 SSH 金鑰，或填入自訂的 `core.sshCommand`。
+3. 選「沿用全域」的欄位會從這份 Profile 省略，Git 會依設定優先順序取值。儲存後按「檢查生效值」，選擇實際的 Repo 或 Repo 內的資料夾，查看每個值的來源檔案與層級。
+
+Key Manager 將設定存入 Profile 檔，再透過全域 `.gitconfig` 的 `includeIf.gitdir/i:` 依 Repo 的 Git 目錄位置載入。主 Repo 的 Git 目錄也會影響 linked worktree 套用哪份設定，因此可用「檢查生效值」確認。若全域設定出現在 Profile 之後並蓋掉同名欄位，Profile 卡片會提供「修正順序」。
+
+手動建立的 `includeIf` 也會列為外部設定檔，可在介面中編輯。刪除這類 Profile 時會解除資料夾關聯，外部設定檔會保留。
+
+### 備份與還原
+
+- **所在的單一 Repo**可選 Repo 根目錄或 Repo 內的資料夾。**掃描底下的多個 Repo**可選上層資料夾，備份所選位置本身的 Repo 及掃描找到的最多 50 個子 Repo。
+- 手動備份的內容是 Repo 的本機 Git 設定檔，通常是 `.git/config`。linked worktree 使用共用的 Repo 設定檔。
+- 清單也會顯示資料夾設定操作留下的全域 `.gitconfig` 和 Profile 備份。每個設定檔保留最近 20 份。
+- 選擇一份備份即可預覽內容及目標檔案。按「還原所選備份」後會再次顯示目標，確認後才會還原。若目標檔案已存在，會先備份目前版本。
 
 ### 金鑰使用位置
 SSH／GPG 列表新增「使用位置」欄位，顯示每把 Key 目前被全域設定、哪些資料夾 Profile 或 `~/.ssh/config` 的 Host 引用；刪除金鑰前，確認對話框也會完整列出這些位置，避免誤刪正在使用的 Key。
@@ -121,10 +136,11 @@ key-manager
 4. 預設演算法是 RSA 4096，也可以改成 ED25519。
 5. GnuPG 會跳出原生的 Pinentry 視窗讓你設定 Passphrase（Key Manager 完全看不到這組密碼）。
 
-### 啟用 Git Commit / Tag GPG Signing
-1. 到「Git 設定」頁面，填入 `user.name`、`user.email`。
-2. 選擇要用來簽章的 GPG Key（完整 Fingerprint）。
-3. 打開「Git GPG 簽章」開關即可——Commit 跟 Tag 會一起套用同一組設定。
+### 設定預設的 Git 作者及 GPG 簽章
+
+1. 開啟「Git 設定（全域）」，填入作者名稱和信箱，按「儲存作者資訊」。
+2. 選擇要用來簽章的 GPG 金鑰。
+3. 開啟「啟用自動簽章（Commit 與 Tag）」，按「套用簽章設定」。
 
 ---
 

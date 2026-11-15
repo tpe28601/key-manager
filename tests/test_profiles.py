@@ -342,3 +342,69 @@ def test_effective_config_non_repo_folder(git_env, profiled_folder: Path):
 def test_effective_config_missing_folder_raises(git_env):
     with pytest.raises(NotADirectoryError):
         profiles.check_effective_config(str(git_env / "does-not-exist"))
+
+
+def test_restore_oldest_backup_at_capacity(git_env):
+    target = profiles.global_config_path()
+    for revision in range(20):
+        target.write_text(f"[user]\n\tname = Revision {revision}\n", encoding="utf-8")
+        profiles.backup_file(target)
+    oldest = profiles.list_backups()[-1]
+    target.write_text("[user]\n\tname = Current\n", encoding="utf-8")
+
+    profiles.restore_backup(oldest["name"])
+
+    assert "Revision 0" in target.read_text(encoding="utf-8")
+    assert "Current" in profiles.read_backup(profiles.list_backups()[0]["name"])["text"]
+    assert len(profiles.list_backups()) == 20
+
+
+def test_restore_deleted_profile_without_overwriting_other_settings(git_env, git_cli):
+    folder = git_env / "client"
+    folder.mkdir()
+    git_cli("init", "-q", cwd=folder)
+    saved = profiles.save_profile({
+        "name": "Client Team", "note": "Client identity", "folders": [str(folder)],
+        "fields": {"user.name": "Client User"},
+    })
+    profiles.delete_profile(saved["id"])
+    entry = next(item for item in profiles.list_backups() if item["base"] == Path(saved["path"]).name)
+    assert entry["target"] == "deleted-profile" and entry["restorable"]
+    git_cli("config", "--global", "user.email", "later@example.com")
+
+    profiles.restore_backup(entry["name"])
+
+    restored = profiles.list_profiles()[0]
+    assert (restored["id"], restored["name"], restored["note"]) == (saved["id"], "Client Team", "Client identity")
+    assert git_cli("config", "user.name", cwd=folder).stdout.strip() == "Client User"
+    assert git_cli("config", "user.email", cwd=folder).stdout.strip() == "later@example.com"
+    assert not next(item for item in profiles.list_backups() if item["name"] == entry["name"])["restorable"]
+
+
+def test_profile_with_all_inherited_fields_creates_config(git_env):
+    folder = git_env / "client"
+    folder.mkdir()
+    saved = profiles.save_profile({"name": "Inherit", "folders": [str(folder)], "fields": {}})
+    assert Path(saved["path"]).is_file()
+    assert saved["warnings"] == []
+
+
+def test_deleted_profile_restore_keeps_folders_owned_by_another_profile(git_env):
+    folder = git_env / "client"
+    folder.mkdir()
+    original = profiles.save_profile({
+        "name": "Original", "folders": [str(folder)], "fields": {"user.name": "First"},
+    })
+    profiles.delete_profile(original["id"])
+    backup = next(item for item in profiles.list_backups() if item["target"] == "deleted-profile")
+    replacement = profiles.save_profile({
+        "name": "Replacement", "folders": [str(folder)], "fields": {"user.name": "Second"},
+    })
+    before = profiles.global_config_path().read_bytes()
+
+    with pytest.raises(profiles.ProfileError, match="Replacement"):
+        profiles.restore_backup(backup["name"])
+
+    assert profiles.global_config_path().read_bytes() == before
+    assert not Path(original["path"]).exists()
+    assert [item["id"] for item in profiles.list_profiles()] == [replacement["id"]]

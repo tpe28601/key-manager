@@ -10,11 +10,11 @@ WEB = ROOT / "src" / "key_manager" / "web" / "static"
 def test_release_metadata_is_1_2_0():
     from key_manager import metadata
 
-    assert metadata.APP_VERSION == "1.2.5"
-    assert metadata.APP_VERSION_LABEL == "1.2.5"
-    assert "filevers=(1, 2, 5, 0)" in (ROOT / "version_info.txt").read_text(encoding="utf-8")
+    assert metadata.APP_VERSION == "1.3.0"
+    assert metadata.APP_VERSION_LABEL == "1.3.0"
+    assert "filevers=(1, 3, 0, 0)" in (ROOT / "version_info.txt").read_text(encoding="utf-8")
     manifest = json.loads((ROOT / "tool.json").read_text(encoding="utf-8"))
-    assert manifest["version"] == "1.2.5"
+    assert manifest["version"] == "1.3.0"
 
 
 def test_1_2_modules_import_and_expose_api():
@@ -53,18 +53,17 @@ def test_frontend_has_profile_ui_and_usage_column():
     assert 'id="profile-check-dialog"' in html
     assert 'id="profile-list"' in html
     assert 'id="dash-profiles"' in html
-    assert html.count("<th>使用位置</th>") == 2  # SSH + GPG tables
+    assert html.count('scope="col">使用位置</th>') == 2  # SSH + GPG tables
 
     assert "list_git_profiles" in js and "get_key_usage" in js
     assert "usageCell" in js and "loadGitProfiles" in js
     assert "save_git_profile" in js and "fix_profile_order" in js
     assert "select_folder" in js  # mock + desktop picker fallback
 
-    # The folder browser is callback-based now (SSH flow stays as the default),
-    # rendered by the shared ui-kit tb-dirpicker component.
+    # Folder profiles use selection-only mode of the shared picker.
     assert "window.KmDirBrowser" in beta3
     assert "TbDirPicker.open" in beta3
-    assert "options.onPick" in beta3
+    assert "options.pickOnly" in beta3
     assert "set_ssh_directory" in beta3
 
     assert ".profile-card" in css
@@ -72,10 +71,10 @@ def test_frontend_has_profile_ui_and_usage_column():
     assert ".usage-chips" in css
 
 
-def test_folder_picker_still_drives_ssh_directory_flow_without_callback():
+def test_folder_picker_pick_only_does_not_change_ssh_directory():
     beta3 = (WEB / "beta3.js").read_text(encoding="utf-8")
-    assert "if (typeof options.onPick === 'function')" in beta3
-    assert (beta3.index("if (typeof options.onPick === 'function')")
+    assert "if (options.pickOnly || !picked) return picked;" in beta3
+    assert (beta3.index("if (options.pickOnly || !picked)")
             < beta3.index("set_ssh_directory"))
 
 

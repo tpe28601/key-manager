@@ -214,6 +214,35 @@ class KeyManagerApi(BaseKeyManagerApi):
         except Exception as exc:
             return _error(exc)
 
+    def create_repo_config_backups(self, folder: str, recursive: bool = False) -> dict[str, Any]:
+        try:
+            if not str(folder).strip():
+                raise ValueError("請先指定資料夾")
+            target = Path(folder).expanduser().resolve()
+            if not target.is_dir():
+                raise NotADirectoryError(f"找不到資料夾：{target}")
+            candidates = [target] if not recursive or (target / ".git").exists() else []
+            if recursive:
+                candidates.extend(Path(item["path"]) for item in _scan_repos(str(target)))
+            names, failures = [], []
+            backed_up = set()
+            for candidate in candidates:
+                try:
+                    repo, config = profiles.repo_config_target(candidate)
+                    if recursive and not repo.is_relative_to(target):
+                        continue
+                    if config not in backed_up:
+                        names.append(profiles.backup_repo_config(repo, config).name)
+                        backed_up.add(config)
+                except (OSError, profiles.ProfileError) as exc:
+                    failures.append({"repo": str(candidate), "error": str(exc)})
+            if not names:
+                reason = failures[0]["error"] if failures else "找不到可備份的 Git Repo"
+                return _error(profiles.ProfileError(reason), failures=failures)
+            return _ok(names=names, failures=failures, message=f"已建立 {len(names)} 份 Repo 設定備份")
+        except Exception as exc:
+            return _error(exc)
+
     def read_config_backup(self, name: str) -> dict[str, Any]:
         try:
             return _ok(**profiles.read_backup(str(name)))

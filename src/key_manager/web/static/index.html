@@ -16,96 +16,157 @@
 </head>
 <body class="tb-app">
   <div class="app-shell">
-    <aside class="sidebar tb-theme-panel tb-theme-toolbar">
+    <header class="topbar tb-theme-toolbar">
       <div class="brand">
-        <span class="icon brand-icon"><i data-tb-icon="key"></i></span>
+        <span class="tb-card__icon"><i data-tb-icon="key" data-size="17"></i></span>
         <div class="brand-copy"><strong>Key Manager</strong><span>SSH &amp; GPG</span></div>
       </div>
-      <nav class="nav-list" aria-label="主要導覽">
-        <button class="tb-tab is-active" data-page="dashboard"><i data-tb-icon="layout-dashboard" data-anim="pop"></i><span>總覽</span></button>
-        <button class="tb-tab" data-page="ssh"><i data-tb-icon="key" data-anim="bounce"></i><span>SSH 金鑰</span></button>
-        <button class="tb-tab" data-page="gpg"><i data-tb-icon="shield" data-anim="wiggle"></i><span>GPG 金鑰</span></button>
-        <button class="tb-tab" data-page="git"><i data-tb-icon="git-branch" data-anim="nudge"></i><span>Git 設定</span></button>
-        <button class="tb-tab" data-page="profiles"><i data-tb-icon="folder" data-anim="pop"></i><span>資料夾設定</span></button>
-      </nav>
-      <div class="sidebar-footer">
-        <div><strong id="footer-version">v1.0 Preview</strong></div>
-        <div>作者：<span id="footer-author">Mike Lin</span></div>
-        <div class="environment" id="environment">Windows</div>
+      <div class="topbar-controls">
+        <div class="topbar-meta">
+          <strong id="footer-version">v1.0 Preview</strong>
+          <span>作者：<span id="footer-author">Mike Lin</span></span>
+        </div>
+        <div class="server-status" id="server-status" hidden>
+          <span id="server-port">本機服務 port —</span>
+          <span class="tb-badge" id="server-state" role="status">連線中…</span>
+        </div>
+        <button id="standalone-update" class="tb-btn tb-btn--icon tb-hidden tb-theme-control" type="button" data-update-bridge="pywebview" hidden><i data-tb-icon="download" aria-hidden="true"></i></button>
+        <button class="tb-btn tb-btn--icon tb-theme-control" id="refresh-btn" type="button" title="重新整理" aria-label="重新整理"><span class="icon" data-icon="tabler:refresh"></span></button>
+        <button class="tb-btn tb-btn--icon tb-theme-control" id="theme-btn" type="button" title="切換主題" aria-label="切換主題"><span class="icon" data-icon="tabler:device-desktop"></span></button>
       </div>
-    </aside>
+    </header>
+    <nav class="nav-list tool-tabs" aria-label="主要導覽">
+      <button class="tb-tab is-active" data-page="dashboard" type="button" aria-current="page"><i data-tb-icon="layout-dashboard" data-anim="pop"></i>總覽</button>
+      <button class="tb-tab" data-page="ssh" type="button"><i data-tb-icon="key" data-anim="bounce"></i>SSH 金鑰</button>
+      <button class="tb-tab" data-page="gpg" type="button"><i data-tb-icon="shield" data-anim="wiggle"></i>GPG 金鑰</button>
+      <button class="tb-tab" data-page="git" type="button"><i data-tb-icon="git-branch" data-anim="nudge"></i>Git 設定（全域）</button>
+      <button class="tb-tab" data-page="profiles" type="button"><i data-tb-icon="folder" data-anim="pop"></i>資料夾設定</button>
+      <button class="tb-tab" data-page="backups" type="button"><i data-tb-icon="history"></i>備份與還原</button>
+    </nav>
 
-    <main class="main-area">
-      <header class="topbar">
-        <div class="topbar-spacer"></div>
-        <button id="standalone-update" class="button ghost tb-hidden tb-theme-control" type="button" data-update-bridge="pywebview" hidden><i data-tb-icon="download" aria-hidden="true"></i></button>
-        <button class="button ghost tb-theme-control" id="refresh-btn"><span class="icon" data-icon="tabler:refresh"></span>重新整理</button>
-        <button class="button ghost tb-theme-control" id="theme-btn" title="切換主題：淺色 → 深色 → 跟隨系統"><span class="icon" data-icon="tabler:device-desktop"></span><span id="theme-text">跟隨系統</span></button>
-      </header>
+    <main class="content-scroll">
+      <section class="page active" id="page-dashboard">
+        <div class="page-heading"><div><h1>總覽</h1><p>查看 SSH、GPG 與 Git 的目前狀態</p></div></div>
+        <div class="dashboard-grid">
+          <article class="status-card tb-theme-panel"><div class="card-label">SSH</div><div class="card-value" id="dash-ssh">讀取中…</div></article>
+          <article class="status-card tb-theme-panel"><div class="card-label">GPG</div><div class="card-value" id="dash-gpg">讀取中…</div></article>
+          <article class="status-card tb-theme-panel"><div class="card-label">Git Identity</div><div class="card-value" id="dash-git">讀取中…</div></article>
+          <article class="status-card tb-theme-panel"><div class="card-label">Git GPG Signing</div><div class="card-value" id="dash-signing">讀取中…</div></article>
+          <article class="status-card tb-theme-panel clickable" id="dash-profiles-card" data-action="open-profiles" role="button" tabindex="0" aria-label="前往資料夾設定"><div class="card-label">資料夾設定</div><div class="card-value" id="dash-profiles">讀取中…</div></article>
+        </div>
+        <div class="action-row">
+          <button class="button primary tb-theme-control" data-action="open-ssh-create"><span class="icon" data-icon="tabler:key"></span>建立 SSH 金鑰</button>
+          <button class="button tb-theme-control" data-action="open-gpg-create"><span class="icon" data-icon="tabler:shield-lock"></span>建立 GPG 金鑰</button>
+          <button class="button tb-theme-control" data-action="open-git"><span class="icon" data-icon="tabler:brand-git"></span>設定 Git GPG Signing</button>
+        </div>
+      </section>
 
-      <div class="content-scroll">
-        <section class="page active" id="page-dashboard">
-          <div class="page-heading"><div><h1>總覽</h1><p>查看 SSH、GPG 與 Git 的目前狀態</p></div></div>
-          <div class="dashboard-grid">
-            <article class="status-card tb-theme-panel"><div class="card-label">SSH</div><div class="card-value" id="dash-ssh">讀取中…</div></article>
-            <article class="status-card tb-theme-panel"><div class="card-label">GPG</div><div class="card-value" id="dash-gpg">讀取中…</div></article>
-            <article class="status-card tb-theme-panel"><div class="card-label">Git Identity</div><div class="card-value" id="dash-git">讀取中…</div></article>
-            <article class="status-card tb-theme-panel"><div class="card-label">Git GPG Signing</div><div class="card-value" id="dash-signing">讀取中…</div></article>
-            <article class="status-card tb-theme-panel clickable" id="dash-profiles-card" data-action="open-profiles" role="button" tabindex="0" aria-label="前往資料夾設定"><div class="card-label">資料夾設定</div><div class="card-value" id="dash-profiles">讀取中…</div></article>
+      <section class="page" id="page-ssh">
+        <div class="page-heading split"><div><h1>SSH 金鑰</h1><p id="ssh-status">管理本機 Public Key 與 SSH Agent</p></div><div class="page-heading-actions"><button class="button tb-theme-control" id="agent-manage-btn"><span class="icon" data-icon="tabler:key"></span>管理 Agent</button><button class="button primary tb-theme-control" id="ssh-create-btn"><span class="icon" data-icon="tabler:plus"></span>建立 SSH 金鑰</button></div></div>
+        <div class="notice"><span class="icon" data-icon="tabler:info-circle"></span><span>SSH Agent 是暫存已解鎖私鑰的可選功能；未啟動不影響 Public Key 複製或匯出。</span></div>
+        <div class="table-wrap tb-theme-panel" role="region" aria-label="SSH 金鑰清單" tabindex="0">
+          <table class="keys-table"><thead><tr><th scope="col">名稱</th><th scope="col">類型</th><th scope="col">Fingerprint</th><th scope="col">Comment</th><th scope="col">使用位置</th><th scope="col" class="right">操作</th></tr></thead><tbody id="ssh-body"></tbody></table>
+          <div class="empty-state" id="ssh-empty">尚未找到 SSH Public Key</div>
+        </div>
+      </section>
+
+      <section class="page" id="page-gpg">
+        <div class="page-heading split"><div><h1>GPG 金鑰</h1><p id="gpg-status">Key 列表由 Git Bash 中的 gpg 提供</p></div><button class="button primary tb-theme-control" id="gpg-create-btn"><span class="icon" data-icon="tabler:plus"></span>建立 GPG 金鑰</button></div>
+        <div class="notice"><span class="icon" data-icon="tabler:terminal-2"></span><span>Backend：C:\Program Files\Git\bin\bash.exe -lc "gpg …"，與你在 Git Bash 手動執行的環境一致。</span></div>
+        <div class="table-wrap tb-theme-panel" role="region" aria-label="GPG 金鑰清單" tabindex="0">
+          <table class="keys-table"><thead><tr><th scope="col">使用者</th><th scope="col">演算法</th><th scope="col">Fingerprint</th><th scope="col">到期日</th><th scope="col">使用位置</th><th scope="col" class="right">操作</th></tr></thead><tbody id="gpg-body"></tbody></table>
+          <div class="empty-state" id="gpg-empty">尚未找到 GPG Secret Key</div>
+        </div>
+      </section>
+
+      <section class="page" id="page-git">
+        <div class="page-heading"><div>
+          <h1>Git 設定（全域）</h1>
+          <p>設定目前使用者的 Git 預設值。各 Repo 可透過「資料夾設定」或自己的 Git 設定覆蓋這些值。</p>
+        </div></div>
+        <div class="notice" id="git-status" role="status" hidden></div>
+        <div class="form-panel tb-theme-panel">
+          <h2>Commit 作者資訊</h2>
+          <p class="panel-intro">Git 會把這個名稱和電子郵件寫入新建立的 Commit。</p>
+          <div class="form-grid"><label>名稱（user.name）<input id="git-name" autocomplete="off"></label><label>電子郵件（user.email）<input class="tb-theme-control" id="git-email" type="email" autocomplete="off"></label></div>
+          <div class="action-row"><button class="button primary tb-theme-control" id="git-save-identity"><span class="icon" data-icon="tabler:device-floppy"></span>儲存作者資訊</button></div>
+        </div>
+        <div class="form-panel tb-theme-panel">
+          <h2>Commit 與 Tag 的 GPG 簽章</h2>
+          <p class="panel-intro">先選一把 GPG 金鑰，再開啟自動簽章並套用。這個開關會同時設定 Commit 和 Tag。</p>
+          <div class="form-grid single">
+            <label>GPG 簽章金鑰<select class="tb-theme-control" id="git-signing-key"></select></label>
+            <label>完整指紋（Fingerprint）<input id="git-fingerprint" readonly></label>
+            <label>簽章格式（gpg.format）<input id="git-format" readonly></label>
+            <label>GPG 程式路徑（gpg.program）<input id="git-program" readonly></label>
           </div>
-          <div class="action-row">
-            <button class="button primary tb-theme-control" data-action="open-ssh-create"><span class="icon" data-icon="tabler:key"></span>建立 SSH 金鑰</button>
-            <button class="button tb-theme-control" data-action="open-gpg-create"><span class="icon" data-icon="tabler:shield-lock"></span>建立 GPG 金鑰</button>
-            <button class="button tb-theme-control" data-action="open-git"><span class="icon" data-icon="tabler:brand-git"></span>設定 Git GPG Signing</button>
+          <label class="switch-row"><input type="checkbox" id="git-signing-enabled"><span class="switch"></span><span>啟用自動簽章（Commit 與 Tag）</span></label>
+          <div class="action-row"><button class="button tb-theme-control" id="git-save-signing"><span class="icon" data-icon="tabler:signature"></span>套用簽章設定</button></div>
+        </div>
+      </section>
+
+      <section class="page" id="page-profiles">
+        <div class="page-heading"><div>
+          <h1>資料夾設定（Profiles）</h1>
+          <p>為指定資料夾及其子資料夾內的 Repo 設定 Commit 作者、GPG 簽章或 SSH 金鑰。未指定的值沿用全域設定。</p>
+          <p>例如把 <code>D:/Work/ClientA</code> 加到公司用的 Profile，底下的 Repo 就能套用公司的名稱、信箱和金鑰。用「檢查生效值」確認 Git 實際讀到的值及來源。</p>
+        </div></div>
+        <div class="form-panel tb-theme-panel" id="git-profiles-panel">
+          <div class="profile-toolbar" role="group" aria-label="資料夾設定操作">
+            <button class="button primary tb-theme-control" id="profile-add-btn" type="button"><span class="icon" data-icon="tabler:plus"></span>新增設定</button>
+            <button class="button tb-theme-control" id="profile-check-btn" type="button"><span class="icon" data-icon="tabler:search"></span>檢查生效值</button>
           </div>
-        </section>
+          <div class="profile-list" id="profile-list"></div>
+          <div class="empty-state visible" id="profile-empty">尚未建立資料夾設定。按「新增設定」開始。</div>
+          <div class="profile-global-path" id="profile-global-path"></div>
+        </div>
+      </section>
 
-        <section class="page" id="page-ssh">
-          <div class="page-heading split"><div><h1>SSH 金鑰</h1><p id="ssh-status">管理本機 Public Key 與 SSH Agent</p></div><div class="page-heading-actions"><button class="button tb-theme-control" id="agent-manage-btn"><span class="icon" data-icon="tabler:key"></span>管理 Agent</button><button class="button primary tb-theme-control" id="ssh-create-btn"><span class="icon" data-icon="tabler:plus"></span>建立 SSH 金鑰</button></div></div>
-          <div class="notice"><span class="icon" data-icon="tabler:info-circle"></span><span>SSH Agent 是暫存已解鎖私鑰的可選功能；未啟動不影響 Public Key 複製或匯出。</span></div>
-          <div class="table-wrap tb-theme-panel"><table><thead><tr><th>名稱</th><th>類型</th><th>Fingerprint</th><th>Comment</th><th>使用位置</th><th class="right">操作</th></tr></thead><tbody id="ssh-body"></tbody></table><div class="empty-state" id="ssh-empty">尚未找到 SSH Public Key</div></div>
-        </section>
-
-        <section class="page" id="page-gpg">
-          <div class="page-heading split"><div><h1>GPG 金鑰</h1><p id="gpg-status">Key 列表由 Git Bash 中的 gpg 提供</p></div><button class="button primary tb-theme-control" id="gpg-create-btn"><span class="icon" data-icon="tabler:plus"></span>建立 GPG 金鑰</button></div>
-          <div class="notice"><span class="icon" data-icon="tabler:terminal-2"></span><span>Backend：C:\Program Files\Git\bin\bash.exe -lc "gpg …"，與你在 Git Bash 手動執行的環境一致。</span></div>
-          <div class="table-wrap tb-theme-panel"><table><thead><tr><th>使用者</th><th>演算法</th><th>Fingerprint</th><th>到期日</th><th>使用位置</th><th class="right">操作</th></tr></thead><tbody id="gpg-body"></tbody></table><div class="empty-state" id="gpg-empty">尚未找到 GPG Secret Key</div></div>
-        </section>
-
-        <section class="page" id="page-git">
-          <div class="page-heading"><div><h1>Git 設定</h1><p id="git-status">設定 Git for Windows 全域身份與 Commit + Tag Signing</p></div></div>
-          <div class="form-panel tb-theme-panel">
-            <h2>Git Identity</h2>
-            <div class="form-grid"><label>Global user.name<input id="git-name" autocomplete="off"></label><label>Global user.email<input class="tb-theme-control" id="git-email" type="email" autocomplete="off"></label></div>
-            <div class="action-row"><button class="button primary tb-theme-control" id="git-save-identity"><span class="icon" data-icon="tabler:device-floppy"></span>儲存 Git Identity</button></div>
+      <section class="page" id="page-backups" aria-labelledby="backup-title">
+        <div class="page-heading split">
+          <div>
+            <h1 id="backup-title">備份與還原</h1>
+            <p>建立 Repo 的本機 Git 設定備份，也可查閱既有的全域和資料夾設定備份。每個設定檔保留最近 20 份。</p>
           </div>
-          <div class="form-panel tb-theme-panel">
-            <h2>Commit + Tag Signing</h2>
-            <div class="form-grid single">
-              <label>Signing Key<select class="tb-theme-control" id="git-signing-key"></select></label>
-              <label>完整 Fingerprint<input id="git-fingerprint" readonly></label>
-              <label>gpg.format<input id="git-format" readonly></label>
-              <label>Git gpg.program<input id="git-program" readonly></label>
+          <button class="button tb-theme-control" id="backup-open-folder" type="button"><span class="icon" data-icon="tabler:folder-open"></span><span id="backup-folder-label">開啟備份資料夾</span></button>
+        </div>
+        <label class="form-panel tb-theme-panel" id="backup-location" hidden>
+          備份資料夾路徑
+          <input id="backup-location-path" class="tb-theme-control" type="text" readonly>
+        </label>
+        <form class="form-panel tb-theme-panel backup-create" id="backup-create-form">
+          <h2>建立 Repo 設定備份</h2>
+          <label for="backup-repo-path">Repo 或上層資料夾</label>
+          <div class="dir-pathbar">
+            <input id="backup-repo-path" class="tb-theme-control" type="text" required spellcheck="false">
+            <button class="button tb-theme-control" id="backup-repo-browse" type="button"><span class="icon" data-icon="tabler:folder-open"></span>瀏覽</button>
+          </div>
+          <div class="backup-create-actions">
+            <label><span>備份範圍</span><select id="backup-repo-scope" class="tb-theme-control" aria-describedby="backup-create-note">
+              <option value="single">所在的單一 Repo</option>
+              <option value="recursive">掃描底下的多個 Repo</option>
+            </select></label>
+            <button class="button primary tb-theme-control" id="backup-create" type="submit"><span class="icon" data-icon="tabler:plus"></span>建立備份</button>
+          </div>
+          <p class="muted" id="backup-create-note">單一模式可選 Repo 或 Repo 裡的資料夾。批次模式會備份選定位置本身的 Repo（若有），以及掃描找到的最多 50 個子 Repo。每份備份包含該 Repo 的本機 Git 設定檔。</p>
+          <p class="muted" id="backup-create-status" role="status" hidden></p>
+        </form>
+        <div class="backup-body">
+          <section class="form-panel tb-theme-panel backup-side">
+            <h2>備份清單</h2>
+            <div class="backup-list" id="backup-list"></div>
+            <div class="empty-state visible" id="backup-empty" role="status">載入備份中…</div>
+          </section>
+          <section class="form-panel tb-theme-panel backup-detail">
+            <h2>備份預覽</h2>
+            <p id="backup-detail" class="muted" role="status">請從清單選擇一份備份。</p>
+            <pre class="backup-preview" id="backup-preview" tabindex="0">選擇備份後即可預覽內容</pre>
+            <div class="action-row backup-actions">
+              <button class="button primary tb-theme-control" id="backup-restore" type="button" disabled><span class="icon" data-icon="tabler:history"></span>還原所選備份</button>
             </div>
-            <label class="switch-row"><input type="checkbox" id="git-signing-enabled"><span class="switch"></span><span>啟用 Git GPG 簽章（Commit + Tag）</span></label>
-            <div class="action-row"><button class="button tb-theme-control" id="git-save-signing"><span class="icon" data-icon="tabler:signature"></span>套用 Signing 設定</button></div>
-          </div>
-        </section>
-
-        <section class="page" id="page-profiles">
-          <div class="page-heading"><div><h1>資料夾設定（Profiles）</h1><p>用全域 <code>includeIf</code> 依資料夾切換 Git 身份與簽章；Key Manager 只增刪自己管理的 includeIf 行，你的註解與其他設定都會保留。</p></div></div>
-          <div class="form-panel tb-theme-panel" id="git-profiles-panel">
-            <div class="profile-toolbar">
-              <button class="button primary tb-theme-control" id="profile-add-btn"><span class="icon" data-icon="tabler:plus"></span>新增資料夾設定</button>
-              <button class="button tb-theme-control" id="profile-check-btn"><span class="icon" data-icon="tabler:search"></span>檢查實際生效值</button>
-              <button class="button ghost tb-theme-control" id="profile-backup-btn"><span class="icon" data-icon="tabler:history"></span>備份與還原…</button>
-            </div>
-            <div class="profile-list" id="profile-list"></div>
-            <div class="empty-state visible" id="profile-empty">尚未建立資料夾設定；按「新增資料夾設定」開始</div>
-            <div class="profile-global-path" id="profile-global-path"></div>
-          </div>
-        </section>
-      </div>
+          </section>
+        </div>
+      </section>
     </main>
   </div>
 
@@ -138,7 +199,7 @@
   <dialog id="profile-dialog" class="modal tb-theme-dialog profile-modal">
     <form method="dialog" id="profile-form">
       <div class="modal-head">
-        <div><h2 id="profile-dialog-title">新增資料夾設定</h2><p>設定寫入專屬 Profile 檔，並用 includeIf 套用到下列資料夾</p></div>
+        <div><h2 id="profile-dialog-title">新增資料夾設定</h2><p>Git 會依 Repo 的 Git 目錄位置載入這份設定。</p></div>
         <button class="icon-button tb-theme-control" id="profile-cancel-x" type="button" aria-label="關閉"><span class="icon" data-icon="tabler:x"></span></button>
       </div>
       <div class="modal-body profile-modal-body">
@@ -147,30 +208,30 @@
           <label>名稱<input id="pf-name" autocomplete="off" required></label>
           <label>備註<input id="pf-note" autocomplete="off"></label>
         </div>
-        <div class="pf-folders-head"><strong>資料夾</strong><span class="muted">套用範圍（含子資料夾的 repo）</span><button class="button small tb-theme-control" id="pf-add-folder" type="button"><span class="icon" data-icon="tabler:plus"></span>新增資料夾</button></div>
+        <div class="pf-folders-head"><strong>資料夾</strong><span class="muted">可加入多個資料夾，範圍包含子資料夾內的 Repo</span><button class="button small tb-theme-control" id="pf-add-folder" type="button"><span class="icon" data-icon="tabler:plus"></span>新增資料夾</button></div>
         <ul class="pf-folders" id="pf-folders"></ul>
-        <div class="pf-fields-head"><strong>設定值</strong><span class="muted">勾「沿用全域」的欄位不寫入，繼續使用全域值</span></div>
+        <div class="pf-fields-head"><strong>設定值</strong><span class="muted">選「沿用全域」會省略這個欄位，交由 Git 依設定優先順序取值</span></div>
         <div class="form-grid">
           <div class="pf-field">
-            <label>user.name<input id="pf-user-name" autocomplete="off" disabled></label>
+            <label>Commit 作者名稱（user.name）<input id="pf-user-name" autocomplete="off" disabled></label>
             <label class="pf-inherit"><input type="checkbox" id="pf-inherit-name" checked><span>沿用全域</span></label>
           </div>
           <div class="pf-field">
-            <label>user.email<input class="tb-theme-control" id="pf-user-email" type="email" autocomplete="off" disabled></label>
+            <label>Commit 作者信箱（user.email）<input class="tb-theme-control" id="pf-user-email" type="email" autocomplete="off" disabled></label>
             <label class="pf-inherit"><input type="checkbox" id="pf-inherit-email" checked><span>沿用全域</span></label>
           </div>
           <div class="pf-field">
-            <label>Signing Key（GPG Fingerprint）<select class="tb-theme-control" id="pf-signing-key"></select></label>
+            <label>GPG 簽章金鑰（user.signingkey）<select class="tb-theme-control" id="pf-signing-key"></select></label>
             <input class="tb-theme-control" id="pf-signing-custom" type="text" placeholder="貼上完整 40 字元 Fingerprint" autocomplete="off" hidden>
           </div>
           <div class="pf-field">
-            <label>commit.gpgsign<select class="tb-theme-control" id="pf-commit-gpgsign"><option value="" selected>沿用全域</option><option value="true">true（commit 自動簽章）</option><option value="false">false</option></select></label>
+            <label>Commit 自動簽章（commit.gpgsign）<select class="tb-theme-control" id="pf-commit-gpgsign"><option value="" selected>沿用全域</option><option value="true">啟用</option><option value="false">停用</option></select></label>
           </div>
           <div class="pf-field">
-            <label>tag.gpgSign<select class="tb-theme-control" id="pf-tag-gpgsign"><option value="" selected>沿用全域</option><option value="true">true（tag 自動簽章）</option><option value="false">false</option></select></label>
+            <label>Tag 自動簽章（tag.gpgSign）<select class="tb-theme-control" id="pf-tag-gpgsign"><option value="" selected>沿用全域</option><option value="true">啟用</option><option value="false">停用</option></select></label>
           </div>
           <div class="pf-field">
-            <label>SSH Key（core.sshCommand）<select class="tb-theme-control" id="pf-ssh-key"></select></label>
+            <label>遠端連線用的 SSH 金鑰（core.sshCommand）<select class="tb-theme-control" id="pf-ssh-key"></select></label>
             <input class="tb-theme-control" id="pf-ssh-custom" type="text" placeholder='ssh -i "C:/keys/id_work" -o IdentitiesOnly=yes' autocomplete="off" hidden>
           </div>
         </div>
@@ -184,7 +245,7 @@
 
   <dialog id="profile-check-dialog" class="modal tb-theme-dialog">
     <div class="modal-head">
-      <div><h2>檢查實際生效值</h2><p>在指定資料夾執行 git config，列出真正生效的值與來源檔案</p></div>
+      <div><h2>檢查實際生效值</h2><p>選擇 Repo 或 Repo 內的資料夾，查看 Git 實際使用的設定值、層級和來源檔案。</p></div>
       <button class="icon-button tb-theme-control" id="check-cancel-x" type="button" aria-label="關閉"><span class="icon" data-icon="tabler:x"></span></button>
     </div>
     <div class="modal-body">
@@ -199,25 +260,6 @@
       </div>
     </div>
     <div class="modal-actions"><button class="button tb-theme-control" id="check-close" type="button">關閉</button></div>
-  </dialog>
-
-  <dialog id="backup-dialog" class="modal tb-theme-dialog">
-    <div class="modal-head">
-      <div><h2>備份與還原</h2><p>每次寫入 Git 設定前都會自動備份（每個檔案各保留最近 20 份）；選一份預覽內容，確認後一鍵還原</p></div>
-      <button class="icon-button tb-theme-control" id="backup-cancel-x" type="button" aria-label="關閉"><span class="icon" data-icon="tabler:x"></span></button>
-    </div>
-    <div class="modal-body backup-body">
-      <div class="backup-side">
-        <div class="backup-list" id="backup-list"></div>
-        <div class="empty-state" id="backup-empty">還沒有備份；修改 Git 設定後會自動出現在這裡</div>
-      </div>
-      <pre class="backup-preview" id="backup-preview">選擇左列的備份即可預覽內容</pre>
-    </div>
-    <div class="modal-actions backup-actions">
-      <button class="button ghost tb-theme-control" id="backup-open-folder" type="button"><span class="icon" data-icon="tabler:folder-open"></span>開啟資料夾</button>
-      <button class="button primary tb-theme-control" id="backup-restore" type="button" disabled><span class="icon" data-icon="tabler:history"></span>還原這一份</button>
-      <button class="button tb-theme-control" id="backup-close" type="button">關閉</button>
-    </div>
   </dialog>
 
   <div class="toast-stack" id="toasts"></div>

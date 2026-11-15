@@ -6,7 +6,8 @@
   'use strict';
 
   // 深淺色與 data-embedded 由 tb-theme.js 處理；這裡只補嵌入用樣式與 API 橋接
-  if (document.documentElement.dataset.embedded === '1') {
+  const embedded = document.documentElement.dataset.embedded === '1';
+  if (embedded) {
     // Hub already provides the window chrome; hide the tool's own topbar.
     // (External stylesheet: CSP style-src 'self' rejects inline <style>.)
     const link = document.createElement('link');
@@ -35,6 +36,32 @@
     return data;
   }
 
+  function showServerStatus() {
+    const status = document.querySelector('#server-status');
+    const port = document.querySelector('#server-port');
+    const badge = document.querySelector('#server-state');
+    status.hidden = false;
+
+    async function poll() {
+      let connected = false;
+      try {
+        const response = await fetch('/api/health', {cache: 'no-store', signal: AbortSignal.timeout(3000)});
+        if (response.ok) {
+          const health = await response.json();
+          connected = health.ok === true && Number.isInteger(health.port);
+          if (connected) port.textContent = '本機服務 port ' + health.port;
+        }
+      } catch (_) { /* Retry after a connection error or timeout. */ }
+      const label = connected ? '連線正常' : '伺服器未回應';
+      if (badge.textContent !== label) badge.textContent = label;
+      badge.classList.toggle('tb-badge--ok', connected);
+      badge.classList.toggle('tb-badge--danger', !connected);
+      window.setTimeout(poll, 3000);
+    }
+
+    poll();
+  }
+
   // 告訴 app.js/beta3.js：沒有桌面視窗，資料夾/存檔對話框要改用瀏覽器版本
   window.KM_WEB_MODE = true;
 
@@ -49,6 +76,7 @@
 
   // app.js/beta3.js register their pywebviewready listeners during script evaluation.
   document.addEventListener('DOMContentLoaded', () => {
+    if (!embedded) showServerStatus();
     window.setTimeout(() => {
       window.dispatchEvent(new Event('pywebviewready'));
     }, 0);

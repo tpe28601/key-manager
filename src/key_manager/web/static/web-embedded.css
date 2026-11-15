@@ -1,3 +1,5 @@
 /* Dev-Toolbox web mode (?embedded=1): Hub provides the window chrome. */
 html[data-embedded] .topbar { display: none !important; }
-html[data-embedded] .app-shell { --topbar-offset: 0px; }
+html[data-embedded] .app-shell { grid-template-rows: auto minmax(0, 1fr); }
+html[data-embedded] .nav-list { grid-row: 1; }
+html[data-embedded] .content-scroll { grid-row: 2; }

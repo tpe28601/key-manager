@@ -119,7 +119,7 @@
   }
 
   // ---- Web 模式：瀏覽器內的資料夾挑選（ui-kit tb-dirpicker 共用元件；桌面版用 pywebview 原生對話框） ----
-  // options: { startPath, title, subtitle, onPick }。subtitle 為舊介面欄位，統一後由元件標題承載。
+  // pickOnly returns the selected path to the caller without changing the SSH directory.
   const DIR_DEFAULT_TITLE = '選擇 SSH Key 資料夾';
   async function openDirBrowser(api, options = {}) {
     const fetchDir = async (path, opts) => {
@@ -128,20 +128,12 @@
       }
       return api.browse_directories(path || '');
     };
-    // A showModal() dialog paints in the top layer AND leaves everything
-    // outside it inert — the picker would be both hidden behind and unclickable.
-    // Re-parent the picker into the dialog subtree so it paints above and stays
-    // interactive (same top-layer trick as the toast host in notify() above);
-    // close() removes it from whatever parent it ended up in.
-    const dialogsOpen = [...document.querySelectorAll('dialog[open]')];
-    const hostDialog = dialogsOpen.length ? dialogsOpen[dialogsOpen.length - 1] : null;
-    // Esc inside the picker must close only the picker, never the dialog behind
-    // it (tb-dirpicker stops the keydown; this also blocks the UA cancel).
-    const guardCancel = (event) => event.preventDefault();
-    if (hostDialog) hostDialog.addEventListener('cancel', guardCancel);
-    // SSH flow keeps the ssh-dir fallback; callback flows (profile folders,
+    // A separate top-layer dialog avoids clipping by the parent form's scroll area.
+    const opener = document.activeElement;
+    const pickerDialog = document.querySelector('dialog[open]') ? document.createElement('dialog') : null;
+    // SSH flow keeps the ssh-dir fallback; pick-only flows (profile folders,
     // effective-value check) fall back to the drive list instead.
-    const fallbackStart = typeof options.onPick === 'function' ? '' : ($('#ssh-local-path')?.value || '');
+    const fallbackStart = options.pickOnly ? '' : ($('#ssh-local-path')?.value || '');
     let picked;
     let pickerError = null;
     try {
@@ -152,19 +144,29 @@
         fetchDir,
       });
       const pickerRoot = document.querySelector('.tb-dp');   // open() appends it synchronously
-      if (pickerRoot && hostDialog) hostDialog.append(pickerRoot);
+      if (pickerRoot && pickerDialog) {
+        pickerDialog.className = 'km-picker-dialog';
+        pickerDialog.setAttribute('aria-label', options.title || DIR_DEFAULT_TITLE);
+        pickerDialog.addEventListener('cancel', event => event.preventDefault());
+        document.body.append(pickerDialog);
+        pickerDialog.append(pickerRoot);
+        pickerDialog.showModal();
+        pickerRoot.querySelector('.tb-dp__path').focus({ preventScroll: true });
+      }
       picked = await request;
     } catch (error) {
       pickerError = error;
     } finally {
-      if (hostDialog) hostDialog.removeEventListener('cancel', guardCancel);
+      // Leave the picker on top until Escape's default action has been handled.
+      if (pickerDialog?.open) {
+        await new Promise(resolve => setTimeout(resolve, 0));
+        pickerDialog.close();
+      }
+      pickerDialog?.remove();
+      opener?.focus({ preventScroll: true });
     }
     if (pickerError) return notify(pickerError?.message || String(pickerError), 'error');
-    if (!picked) return;
-    if (typeof options.onPick === 'function') {
-      try { await options.onPick(picked); } catch (error) { notify(error?.message || String(error), 'error'); }
-      return;
-    }
+    if (options.pickOnly || !picked) return picked;
     try {
       const result = await api.set_ssh_directory(picked);
       if (!result?.ok) return notify(result?.error || '設定資料夾失敗', 'error');

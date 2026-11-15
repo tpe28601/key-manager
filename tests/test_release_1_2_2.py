@@ -13,11 +13,11 @@ WEB = ROOT / "src" / "key_manager" / "web" / "static"
 def test_release_metadata_is_current():
     from key_manager import metadata
 
-    assert metadata.APP_VERSION == "1.2.5"
-    assert metadata.APP_VERSION_LABEL == "1.2.5"
-    assert "filevers=(1, 2, 5, 0)" in (ROOT / "version_info.txt").read_text(encoding="utf-8")
+    assert metadata.APP_VERSION == "1.3.0"
+    assert metadata.APP_VERSION_LABEL == "1.3.0"
+    assert "filevers=(1, 3, 0, 0)" in (ROOT / "version_info.txt").read_text(encoding="utf-8")
     manifest = json.loads((ROOT / "tool.json").read_text(encoding="utf-8"))
-    assert manifest["version"] == "1.2.5"
+    assert manifest["version"] == "1.3.0"
     changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
     assert "## v1.2.2" in changelog
     assert changelog.index("## v1.2.2") < changelog.index("## v1.2.1")
@@ -126,19 +126,20 @@ def test_restore_rejects_missing_foreign_and_traversal_names(git_env):
         profiles.restore_backup(foreign.name)
 
 
-def test_backup_dialog_frontend_wiring():
+def test_backup_page_frontend_wiring():
     html = (WEB / "index.html").read_text(encoding="utf-8")
     js = (WEB / "app.js").read_text(encoding="utf-8")
     css = (WEB / "beta5.css").read_text(encoding="utf-8")
 
-    assert "備份與還原…" in html  # toolbar button label
-    assert 'id="backup-dialog"' in html
+    assert 'data-page="backups"' in html
+    assert '<nav class="nav-list tool-tabs"' in html
+    assert '<section class="page" id="page-backups"' in html
     assert 'id="backup-list"' in html
     assert 'id="backup-preview"' in html
     assert 'id="backup-restore"' in html
     assert 'id="backup-open-folder"' in html
     for hook in (
-        "openBackupDialog",
+        "refreshCurrent",
         "loadBackups",
         "selectBackup",
         "restoreSelectedBackup",
@@ -147,9 +148,10 @@ def test_backup_dialog_frontend_wiring():
         "restore_config_backup",
     ):
         assert hook in js, hook
-    assert "$('#profile-backup-btn').addEventListener('click', openBackupDialog);" in js
+    assert "if (state.page === 'backups')" in js
+    assert "$('#backup-create-form').addEventListener('submit', createRepoBackups);" in js
     assert ".backup-item" in css
-    assert "#backup-dialog" in css
+    assert ".backup-body" in css
 
 
 def test_check_dialog_layout_fixes():

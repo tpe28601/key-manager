@@ -3,7 +3,6 @@ directory picker painting behind modal dialogs (native dialog top layer)."""
 
 from pathlib import Path
 import json
-import re
 
 ROOT = Path(__file__).resolve().parents[1]
 WEB = ROOT / "src" / "key_manager" / "web" / "static"
@@ -12,10 +11,10 @@ WEB = ROOT / "src" / "key_manager" / "web" / "static"
 def test_release_metadata_is_current():
     from key_manager import metadata
 
-    assert metadata.APP_VERSION == "1.2.5"
-    assert metadata.APP_VERSION_LABEL == "1.2.5"
+    assert metadata.APP_VERSION == "1.3.0"
+    assert metadata.APP_VERSION_LABEL == "1.3.0"
     manifest = json.loads((ROOT / "tool.json").read_text(encoding="utf-8"))
-    assert manifest["version"] == "1.2.5"
+    assert manifest["version"] == "1.3.0"
     changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
     assert "## v1.2.2" in changelog
     assert changelog.index("## v1.2.2") < changelog.index("## v1.2.1")
@@ -54,18 +53,7 @@ def test_dashboard_card_and_js_target_profiles_page():
 def test_dir_picker_not_hidden_behind_modal_dialogs():
     beta3 = (WEB / "beta3.js").read_text(encoding="utf-8")
 
-    # A modal <dialog> paints in the top layer AND makes everything outside it
-    # inert, so the picker must be re-parented INTO the dialog (same trick as
-    # the toast host) — hiding the dialog instead leaves it unclickable.
-    reattach = re.search(
-        r"dialog\[open\][\s\S]*?const request = TbDirPicker\.open\([\s\S]*?"
-        r"const pickerRoot = document\.querySelector\('\.tb-dp'\)[\s\S]*?"
-        r"hostDialog\.append\(pickerRoot\)[\s\S]*?"
-        r"picked = await request[\s\S]*?\} finally \{[\s\S]*?"
-        r"removeEventListener\('cancel', guardCancel\)",
-        beta3)
-    assert reattach, "openDirBrowser must re-parent .tb-dp into the open dialog and keep the Esc-cancel guard"
-    # the old hide-the-dialog approach must be gone (dialog would keep inert-ing the picker)
-    assert "d.style.display = 'none'" not in beta3
-    notify_at = beta3.index("if (pickerError) return notify")
-    assert reattach.end() < notify_at, "the error toast must fire after the picker settles"
+    assert "document.body.append(pickerDialog)" in beta3
+    assert beta3.index("pickerDialog.append(pickerRoot)") < beta3.index("pickerDialog.showModal()")
+    assert beta3.index("picked = await request") < beta3.index("pickerDialog.close()")
+    assert beta3.index("pickerDialog?.remove()") < beta3.index("if (pickerError) return notify")

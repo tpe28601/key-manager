@@ -8,9 +8,11 @@ The global file itself is never parsed or rewritten as text.
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import re
 import shutil
+from tempfile import NamedTemporaryFile
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -163,7 +165,7 @@ def _backup_sort_key(file_name: str, name: str) -> tuple[str, int]:
     return (match.group(1), int(match.group(2) or 1))
 
 
-def backup_file(path: Path) -> Path | None:
+def backup_file(path: Path, *, prune: bool = True) -> Path | None:
     """Copy a file into backups/ before any write (SPEC-1.2 section 3.4)."""
     path = Path(path)
     if not path.is_file():
@@ -172,7 +174,8 @@ def backup_file(path: Path) -> Path | None:
     directory.mkdir(parents=True, exist_ok=True)
     target = _backup_target(directory, path.name)
     shutil.copy2(path, target)
-    _prune_backups(path.name)
+    if prune:
+        _prune_backups(path.name)
     return target
 
 
@@ -197,6 +200,88 @@ def _backup_path(name: str) -> Path:
     backup = backups_dir() / file_name
     if not backup.is_file():
         raise ProfileError(f"找不到備份檔：{file_name}")
+    return backup
+
+
+def _deleted_profile_metadata(backup: Path) -> dict[str, Any] | None:
+    sidecar = backup.with_name(backup.name + ".profile.json")
+    if not sidecar.is_file():
+        return None
+    base = _split_backup_name(backup.name)
+    try:
+        data = json.loads(sidecar.read_text(encoding="utf-8"))
+        profile_id = data["id"]
+        conditions = data["conditions"]
+        if (
+            not isinstance(profile_id, str)
+            or not re.fullmatch(r"[a-z0-9][a-z0-9-]*", profile_id)
+            or base is None or base[0] != profile_id + ".gitconfig"
+            or not isinstance(conditions, list) or not conditions
+            or any(not isinstance(c, str) or not condition_folder(c) for c in conditions)
+        ):
+            raise ValueError("invalid profile metadata")
+        return data
+    except (KeyError, TypeError, ValueError, OSError) as exc:
+        raise ProfileError(f"無法讀取已刪除 Profile 的備份資訊：{backup.name}") from exc
+
+
+def _repo_backup_base(config: Path) -> str:
+    return "repo-" + hashlib.sha256(_folder_key(str(config)).encode("utf-8")).hexdigest()[:24] + ".gitconfig"
+
+
+def _repo_backup_metadata(backup: Path) -> tuple[Path, Path] | None:
+    sidecar = backup.with_name(backup.name + ".repo.json")
+    if not sidecar.is_file():
+        return None
+    try:
+        data = json.loads(sidecar.read_text(encoding="utf-8"))
+        repo, config = Path(data["repo"]), Path(data["config"])
+        base = _split_backup_name(backup.name)
+        if not repo.is_absolute() or not config.is_absolute() or not base or base[0] != _repo_backup_base(config):
+            raise ValueError("invalid repo backup metadata")
+        return repo, config
+    except (KeyError, TypeError, ValueError, OSError) as exc:
+        raise ProfileError(f"無法讀取 Repo 備份資訊：{backup.name}") from exc
+
+
+def repo_config_target(folder: Path) -> tuple[Path, Path]:
+    folder = folder.expanduser().resolve()
+    if not folder.is_dir():
+        raise ProfileError(f"找不到資料夾：{folder}")
+    result = _run_git(["-C", str(folder), "rev-parse", "--path-format=absolute",
+                       "--show-toplevel", "--git-common-dir"])
+    lines = result.stdout.splitlines()
+    if result.returncode or len(lines) != 2:
+        raise ProfileError(f"找不到此位置的 Git 工作目錄：{folder}")
+    repo, common = map(Path, lines)
+    config = (common / "config").resolve()
+    if not config.is_file():
+        raise ProfileError(f"找不到 Repo 設定檔：{config}")
+    return repo.resolve(), config
+
+
+def backup_repo_config(repo: Path, config: Path, *, prune: bool = True) -> Path:
+    directory = backups_dir()
+    directory.mkdir(parents=True, exist_ok=True)
+    base = _repo_backup_base(config)
+    backup = _backup_target(directory, base)
+    payload = config.read_bytes()
+    with backup.open("xb") as stream:
+        try:
+            stream.write(payload)
+        except OSError:
+            stream.close()
+            backup.unlink(missing_ok=True)
+            raise
+    try:
+        metadata = {"repo": str(repo), "config": str(config)}
+        _replace_config(backup.with_name(backup.name + ".repo.json"),
+                        json.dumps(metadata, ensure_ascii=False).encode("utf-8"))
+    except OSError:
+        backup.unlink(missing_ok=True)
+        raise
+    if prune:
+        _prune_backups(base)
     return backup
 
 
@@ -232,8 +317,23 @@ def list_backups() -> list[dict[str, Any]]:
         match = _TIMESTAMP_SUFFIX.search(item.name)
         if match is None:
             continue
-        target, _base, kind = _resolve_backup_target(item.name)
-        profile_id = target.stem if (target is not None and kind == "profile") else ""
+        repo = None
+        try:
+            repo_record = _repo_backup_metadata(item)
+            deleted = _deleted_profile_metadata(item)
+        except ProfileError:
+            deleted = None
+            target, kind = None, "unknown"
+        else:
+            if repo_record:
+                repo, target = repo_record
+                kind = "repo"
+            elif deleted:
+                target = profiles_dir() / f"{deleted['id']}.gitconfig"
+                kind = "deleted-profile"
+            else:
+                target, _base, kind = _resolve_backup_target(item.name)
+        profile_id = target.stem if target is not None and kind in ("profile", "deleted-profile") else ""
         try:
             stat = item.stat()
             modified = datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S")
@@ -248,9 +348,12 @@ def list_backups() -> list[dict[str, Any]]:
                     "base": item.name[: match.start()],
                     "target": kind,
                     "profile_id": profile_id,
-                    "profile_name": (meta.get(profile_id) or {}).get("name", "") if profile_id else "",
+                    "profile_name": (deleted or meta.get(profile_id) or {}).get("name", ""),
                     "path": str(target) if target else "",
-                    "restorable": bool(target is not None and target.is_file()),
+                    "repo": str(repo) if repo else "",
+                    "restorable": bool(target is not None and (repo is None or repo.is_dir())
+                                       and (not target.exists() if deleted else target.is_file())),
+                    "folders": [condition_folder(c) for c in deleted["conditions"]] if deleted else [],
                     "size": size,
                     "modified": modified,
                 },
@@ -276,6 +379,20 @@ def read_backup(name: str) -> dict[str, Any]:
 def restore_backup(name: str) -> dict[str, Any]:
     """Restore a backup over its current file (the current file is backed up first)."""
     backup = _backup_path(name)
+    payload = backup.read_bytes()
+    repo_record = _repo_backup_metadata(backup)
+    if repo_record:
+        repo, saved_target = repo_record
+        current_repo, target = repo_config_target(repo)
+        if not paths_equivalent(str(saved_target), str(target)) or not paths_equivalent(str(repo), str(current_repo)):
+            raise ProfileError("Repo 的位置或設定檔已變更，無法還原這份備份")
+        backup_repo_config(repo, target, prune=False)
+        _replace_config(target, payload)
+        _prune_backups(_repo_backup_base(target))
+        return {"name": name, "target": str(target), "kind": "repo", "size": len(payload)}
+    deleted = _deleted_profile_metadata(backup)
+    if deleted:
+        return _restore_deleted_profile(backup.name, payload, deleted)
     target, base, kind = _resolve_backup_target(backup.name)
     if target is None:
         raise ProfileError(
@@ -285,29 +402,68 @@ def restore_backup(name: str) -> dict[str, Any]:
     if not target.is_file():
         raise ProfileError(f"目標檔案已不存在：{target}")
     try:
-        backup_file(target)  # the pre-restore snapshot makes the restore rollback-able
+        backup_file(target, prune=False)  # keep the selected backup until the restore succeeds
     except OSError as exc:
         raise ProfileError(f"還原前無法為目前檔案建立備份（目標未被改動）：{exc}") from exc
-    payload = backup.read_bytes()
-    tmp = target.with_name(target.name + ".key-manager-restore.tmp")
-    try:
-        tmp.write_bytes(payload)
-        os.replace(tmp, target)
-    finally:
-        tmp.unlink(missing_ok=True)
+    _replace_config(target, payload)
+    _prune_backups(target.name)
     return {"name": backup.name, "target": str(target), "kind": kind, "size": len(payload)}
 
 
-def move_to_backups(path: Path) -> Path | None:
-    path = Path(path)
-    if not path.is_file():
-        return None
-    directory = backups_dir()
-    directory.mkdir(parents=True, exist_ok=True)
-    target = _backup_target(directory, path.name)
-    shutil.move(str(path), str(target))
-    _prune_backups(path.name)
-    return target
+def _replace_config(target: Path, payload: bytes) -> None:
+    stream = NamedTemporaryFile(dir=target.parent, prefix=".key-manager-", delete=False)
+    tmp = Path(stream.name)
+    try:
+        with stream:
+            stream.write(payload)
+        os.replace(tmp, target)
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
+def _restore_deleted_profile(name: str, payload: bytes, deleted: dict[str, Any]) -> dict[str, Any]:
+    profile_id = deleted["id"]
+    target = profiles_dir() / f"{profile_id}.gitconfig"
+    existing = list_profiles()
+    if target.exists() or any(p["id"].casefold() == profile_id.casefold() for p in existing):
+        raise ProfileError("同名 Profile 已存在，請先確認目前的設定")
+    folders = {_folder_key(condition_folder(c)) for c in deleted["conditions"]}
+    for profile in existing:
+        if any(f["folder"] and _folder_key(f["folder"]) in folders for f in profile["folders"]):
+            raise ProfileError(f"備份的資料夾已被「{profile['name']}」使用")
+    global_path = global_config_path()
+    original = global_path.read_bytes() if global_path.is_file() else b""
+    meta = load_profile_meta()
+    old_meta = dict(meta)
+    meta[profile_id] = {"name": deleted.get("name", profile_id), "note": deleted.get("note", "")}
+    global_path.parent.mkdir(parents=True, exist_ok=True)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with NamedTemporaryFile(dir=global_path.parent, prefix=".key-manager-", delete=False) as stream:
+        staged = Path(stream.name)
+    created = meta_saved = False
+    try:
+        staged.write_bytes(original)
+        for condition in deleted["conditions"]:
+            _check(_run_git(["config", "--file", str(staged), "--add", _include_key(condition),
+                            target.as_posix()]), "還原資料夾關聯")
+        if (global_path.read_bytes() if global_path.is_file() else b"") != original:
+            raise ProfileError("全域 Git 設定已變更，請重試還原")
+        backup_file(global_path)
+        with target.open("xb") as stream:
+            created = True
+            stream.write(payload)
+        save_profile_meta(meta)
+        meta_saved = True
+        staged.replace(global_path)
+    except Exception:
+        if created:
+            target.unlink(missing_ok=True)
+        if meta_saved:
+            save_profile_meta(old_meta)
+        raise
+    finally:
+        staged.unlink(missing_ok=True)
+    return {"name": name, "target": str(target), "kind": "deleted-profile", "size": len(payload)}
 
 
 def _prune_backups(name: str) -> None:
@@ -322,6 +478,8 @@ def _prune_backups(name: str) -> None:
     for stale in candidates[_BACKUP_KEEP:]:
         try:
             stale.unlink()
+            stale.with_name(stale.name + ".profile.json").unlink(missing_ok=True)
+            stale.with_name(stale.name + ".repo.json").unlink(missing_ok=True)
         except OSError:
             pass
 
@@ -759,6 +917,8 @@ def save_profile(payload: dict[str, Any]) -> dict[str, Any]:
             result = _run_git(["config", "--file", str(target_path), key, value])
             if result.returncode != 0:
                 raise ProfileError(result.stderr.strip() or f"寫入 {key} 失敗")
+    if not target_path.exists() and is_managed_profile_path(profile_path):
+        target_path.touch(exist_ok=False)
 
     # Diff includeIf lines: remove folders no longer listed, add new ones.
     current_entry = existing_by_id.get(profile_id)
@@ -793,12 +953,20 @@ def delete_profile(profile_id: str) -> list[str]:
     if target["kind"] == "unsupported":
         raise ProfileError("不支援的條件請手動在全域 .gitconfig 中處理")
 
+    profile_path = Path(target["path"])
+    if target["kind"] == "managed" and profile_path.is_file():
+        snapshot = backup_file(profile_path)
+        if snapshot is not None:
+            record = {"id": profile_id, "name": target["name"], "note": target["note"],
+                      "conditions": [folder["condition"] for folder in target["folders"]]}
+            sidecar = snapshot.with_name(snapshot.name + ".profile.json")
+            _replace_config(sidecar, json.dumps(record, ensure_ascii=False).encode("utf-8"))
     removed: list[str] = []
     for folder in target["folders"]:
         remove_include_if(folder["condition"], target["path"])
         removed.append(folder["folder"] or folder["condition"])
     if target["kind"] == "managed" and target["path"]:
-        move_to_backups(Path(target["path"]))
+        profile_path.unlink(missing_ok=True)
     meta = load_profile_meta()
     meta.pop(profile_id, None)
     save_profile_meta(meta)

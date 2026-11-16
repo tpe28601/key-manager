@@ -123,6 +123,10 @@ def build_api_map(managed: bool = False) -> dict:
         attr = getattr(api, name)
         if callable(attr):
             methods[name] = attr
+    if managed:
+        # Started by the Hub: the update check reports "managed, no standalone update" instead of failing;
+        # open_update stays unavailable.
+        methods["check_update"] = lambda: {"ok": True, "update": None, "managed": True}
     return methods
 
 
